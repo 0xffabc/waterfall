@@ -23,7 +23,7 @@ pub struct WhiteListedSNIWrapper {
 
 #[derive(Debug, Clone, Deserialize, PartialEq, Serialize)]
 #[serde(rename_all = "kebab-case", deny_unknown_fields)]
-pub struct AuxConfig {
+pub struct BindOptions {
     #[serde(default = "default_bind_host", rename = "@bind-host")]
     pub bind_host: String,
     #[serde(default = "default_bind_port", rename = "@bind-port")]
@@ -37,7 +37,11 @@ pub struct AuxConfig {
     pub bind_iface_ipv4: String,
     #[serde(default = "default_bind_iface_ipv6", rename = "@bind-iface-ipv6-ip")]
     pub bind_iface_ipv6: String,
+}
 
+#[derive(Debug, Clone, Deserialize, PartialEq, Serialize)]
+#[serde(rename_all = "kebab-case", deny_unknown_fields)]
+pub struct FakePacketOptions {
     #[serde(default = "default_fake_packet_ttl", rename = "@fake-packet-ttl")]
     pub fake_packet_ttl: u8,
     #[serde(default = "default_fake_packet_sni", rename = "@fake-packet-sni")]
@@ -64,7 +68,18 @@ pub struct AuxConfig {
     pub fake_packet_reversed: bool,
     #[serde(default, rename = "@fake-packet-send-random-garbage")]
     pub fake_packet_random: bool,
+    #[serde(default, rename = "@fake-packet-send-clienthello")]
+    pub fake_clienthello: bool,
+    #[serde(
+        default = "default_fake_clienthello_sni",
+        rename = "@fake-clienthello-sni"
+    )]
+    pub fake_clienthello_sni: String,
+}
 
+#[derive(Debug, Clone, Deserialize, PartialEq, Serialize)]
+#[serde(rename_all = "kebab-case", deny_unknown_fields)]
+pub struct SocketOptions {
     #[serde(default = "default_so_recv_size", rename = "@socket-recv-size")]
     pub so_recv_size: usize,
     #[serde(default = "default_so_send_size", rename = "@socket-send-size")]
@@ -76,22 +91,18 @@ pub struct AuxConfig {
         default = "default_l7_packet_jitter_max",
         rename = "@socket-packet-delay-jitter"
     )]
-    pub l7_packet_jitter_max: u64,
+    pub so_l7_packet_jitter_max: u64,
 
     #[serde(default, rename = "@socket-disable-sack")]
-    pub disable_sack: bool,
-
-    #[serde(default, rename = "@fake-packet-send-clienthello")]
-    pub fake_clienthello: bool,
-    #[serde(
-        default = "default_fake_clienthello_sni",
-        rename = "@fake-clienthello-sni"
-    )]
-    pub fake_clienthello_sni: String,
+    pub so_disable_sack: bool,
 
     #[serde(default = "default_oob_streamhell_data", rename = "@oob-hell-data")]
-    pub oob_streamhell_data: String,
+    pub so_oob_streamhell_data: String,
+}
 
+#[derive(Debug, Clone, Deserialize, PartialEq, Serialize)]
+#[serde(rename_all = "kebab-case", deny_unknown_fields)]
+pub struct HttpOptions {
     #[serde(default, rename = "@http-host-mixcaps")]
     pub http_host_cmix: bool,
     #[serde(default, rename = "@http-host-remove-space")]
@@ -100,7 +111,11 @@ pub struct AuxConfig {
     pub http_host_space: bool,
     #[serde(default, rename = "@http-domain-mixcaps")]
     pub http_domain_cmix: bool,
+}
 
+#[derive(Debug, Clone, Deserialize, PartialEq, Serialize)]
+#[serde(rename_all = "kebab-case", deny_unknown_fields)]
+pub struct DesyncOptions {
     #[serde(
         default = "default_disorder_packet_ttl",
         rename = "@disorder-packet-ttl"
@@ -112,6 +127,16 @@ pub struct AuxConfig {
     pub out_of_band_charid: u8,
     #[serde(default = "default_packet_hop", rename = "@desync-packet-hops-max")]
     pub packet_hop: u64,
+}
+
+#[derive(Debug, Clone, Deserialize, PartialEq, Serialize)]
+#[serde(rename_all = "kebab-case", deny_unknown_fields)]
+pub struct AuxConfig {
+    pub bind_options: BindOptions,
+    pub fake_packet_options: FakePacketOptions,
+    pub socket_options: SocketOptions,
+    pub http_options: HttpOptions,
+    pub desync_options: DesyncOptions,
 
     #[serde(default = "default_whitelist_sni")]
     pub whitelist_sni: bool,
@@ -125,37 +150,47 @@ pub struct AuxConfig {
 impl Default for AuxConfig {
     fn default() -> Self {
         Self {
-            bind_host: default_bind_host(),
-            bind_port: default_bind_port(),
-            bind_iface: default_bind_iface(),
-            bind_iface_mtu: default_bind_iface_mtu(),
-            bind_iface_ipv4: default_bind_iface_ipv4(),
-            bind_iface_ipv6: default_bind_iface_ipv6(),
-            fake_packet_ttl: default_fake_packet_ttl(),
-            fake_packet_sni: default_fake_packet_sni(),
-            fake_as_oob: false,
-            fake_packet_send_http: false,
-            fake_packet_host: default_fake_packet_host(),
-            fake_packet_override_data: default_fake_packet_override_data(),
-            fake_packet_double: false,
-            fake_packet_reversed: false,
-            fake_packet_random: false,
-            so_recv_size: default_so_recv_size(),
-            so_send_size: default_so_send_size(),
-            so_opt_cutoff: default_so_opt_cutoff(),
-            l7_packet_jitter_max: default_l7_packet_jitter_max(),
-            disable_sack: false,
-            fake_clienthello: false,
-            fake_clienthello_sni: default_fake_clienthello_sni(),
-            oob_streamhell_data: default_oob_streamhell_data(),
-            http_host_cmix: false,
-            http_host_rmspace: false,
-            http_host_space: false,
-            http_domain_cmix: false,
-            disorder_packet_ttl: default_disorder_packet_ttl(),
-            default_ttl: default_default_ttl(),
-            out_of_band_charid: default_out_of_band_charid(),
-            packet_hop: default_packet_hop(),
+            bind_options: BindOptions {
+                bind_host: default_bind_host(),
+                bind_port: default_bind_port(),
+                bind_iface: default_bind_iface(),
+                bind_iface_mtu: default_bind_iface_mtu(),
+                bind_iface_ipv4: default_bind_iface_ipv4(),
+                bind_iface_ipv6: default_bind_iface_ipv6(),
+            },
+            fake_packet_options: FakePacketOptions {
+                fake_packet_ttl: default_fake_packet_ttl(),
+                fake_packet_sni: default_fake_packet_sni(),
+                fake_as_oob: false,
+                fake_packet_send_http: false,
+                fake_packet_host: default_fake_packet_host(),
+                fake_packet_override_data: default_fake_packet_override_data(),
+                fake_packet_double: false,
+                fake_packet_reversed: false,
+                fake_packet_random: false,
+                fake_clienthello: false,
+                fake_clienthello_sni: default_fake_clienthello_sni(),
+            },
+            socket_options: SocketOptions {
+                so_recv_size: default_so_recv_size(),
+                so_send_size: default_so_send_size(),
+                so_opt_cutoff: default_so_opt_cutoff(),
+                so_l7_packet_jitter_max: default_l7_packet_jitter_max(),
+                so_disable_sack: false,
+                so_oob_streamhell_data: default_oob_streamhell_data(),
+            },
+            http_options: HttpOptions {
+                http_host_cmix: false,
+                http_host_rmspace: false,
+                http_host_space: false,
+                http_domain_cmix: false,
+            },
+            desync_options: DesyncOptions {
+                disorder_packet_ttl: default_disorder_packet_ttl(),
+                default_ttl: default_default_ttl(),
+                out_of_band_charid: default_out_of_band_charid(),
+                packet_hop: default_packet_hop(),
+            },
             whitelist_sni: default_whitelist_sni(),
             whitelist_sni_list: whitelist_sni_list(),
             strategies: vec![Some(Strategy {

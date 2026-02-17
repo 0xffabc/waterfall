@@ -6,7 +6,7 @@ use std::{
     net::{SocketAddr, TcpStream},
 };
 
-use crate::core::aux_config::AuxConfig;
+use crate::core::aux_config::{AuxConfig, SocketOptions};
 use crate::core::parse_args;
 use socket2_ext::{AddressBinding, BindDeviceOption};
 
@@ -31,18 +31,18 @@ impl SocketOps {
 
         let socket = Socket::new(domain_type, Type::STREAM, Some(Protocol::TCP))?;
 
-        let interface = parse_args().bind_iface;
+        let interface = parse_args().bind_options.bind_iface;
 
         if &interface != "default" {
             socket.bind_to_device(BindDeviceOption::v4(&interface))?;
         }
 
-        let AuxConfig {
+        let SocketOptions {
             so_recv_size,
             so_send_size,
             so_opt_cutoff,
             ..
-        } = parse_args();
+        } = parse_args().socket_options;
 
         socket.set_recv_buffer_size(so_recv_size)?;
         socket.set_send_buffer_size(so_send_size)?;

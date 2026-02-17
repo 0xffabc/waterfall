@@ -33,7 +33,7 @@ fn execute_l4_bypasses<'a>(
     current_data: &'a mut Vec<u8>,
     sni_data: &'a (u32, u32),
 ) {
-    if sni_data != &(0, 0) && config.fake_clienthello {
+    if sni_data != &(0, 0) && config.fake_packet_options.fake_clienthello {
         utils::send_drop(
             &socket,
             [
@@ -44,7 +44,7 @@ fn execute_l4_bypasses<'a>(
                     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 2, 0x00, 0x0a, 0x01, 0x00, 0x00, 16, 0x00,
                     0x00, 0x00, 0x28,
                 ],
-                config.fake_clienthello_sni.as_bytes(),
+                config.fake_packet_options.fake_clienthello_sni.as_bytes(),
             ]
             .concat(),
         );
@@ -141,7 +141,7 @@ fn execute_l4_bypasses<'a>(
                     utils::send_drop(
                         &socket,
                         fake::get_fake_packet(
-                            send_data[if core::parse_args().fake_packet_reversed {
+                            send_data[if core::parse_args().fake_packet_options.fake_packet_reversed {
                                 0
                             } else {
                                 1
@@ -163,7 +163,7 @@ fn execute_l4_bypasses<'a>(
                     utils::send_drop(
                         &socket,
                         fake::get_fake_packet(
-                            send_data[if core::parse_args().fake_packet_reversed {
+                            send_data[if core::parse_args().fake_packet_options.fake_packet_reversed {
                                 0
                             } else {
                                 1
@@ -209,7 +209,7 @@ fn execute_l4_bypasses<'a>(
                     utils::send_drop(
                         &socket,
                         fake::get_fake_packet(
-                            send_data[if core::parse_args().fake_packet_reversed {
+                            send_data[if core::parse_args().fake_packet_options.fake_packet_reversed {
                                 0
                             } else {
                                 1
@@ -223,7 +223,7 @@ fn execute_l4_bypasses<'a>(
                     utils::send_drop(
                         &socket,
                         fake::get_fake_packet(
-                            send_data[if core::parse_args().fake_packet_reversed {
+                            send_data[if core::parse_args().fake_packet_options.fake_packet_reversed {
                                 0
                             } else {
                                 1
@@ -249,7 +249,7 @@ fn execute_l4_bypasses<'a>(
                 if send_data.len() > 1 {
                     let mut ax_part: Vec<u8> = send_data[0].clone();
 
-                    ax_part.push(core::parse_args().out_of_band_charid.into());
+                    ax_part.push(core::parse_args().desync_options.out_of_band_charid.into());
 
                     utils::write_oob_multi(&socket, ax_part);
 
@@ -265,7 +265,10 @@ fn execute_l4_bypasses<'a>(
 
                     let _ = socket.write_all(&ax_part);
 
-                    let oob_part = core::parse_args().oob_streamhell_data.clone();
+                    let oob_part = core::parse_args()
+                        .socket_options
+                        .so_oob_streamhell_data
+                        .clone();
 
                     for byte in oob_part.as_bytes() {
                         utils::write_oob_multi(&socket, vec![*byte]);
@@ -281,11 +284,14 @@ fn execute_l4_bypasses<'a>(
                 if send_data.len() > 1 {
                     let mut ax_part: Vec<u8> = send_data[0].clone();
 
-                    ax_part.push(core::parse_args().out_of_band_charid.into());
+                    ax_part.push(core::parse_args().desync_options.out_of_band_charid.into());
 
                     let _ = utils::set_ttl_raw(&socket, 1);
                     utils::write_oob_multi(&socket, ax_part);
-                    let _ = utils::set_ttl_raw(&socket, core::parse_args().default_ttl.into());
+                    let _ = utils::set_ttl_raw(
+                        &socket,
+                        core::parse_args().desync_options.default_ttl.into(),
+                    );
 
                     *current_data = send_data[1].clone();
                 }
@@ -297,11 +303,14 @@ fn execute_l4_bypasses<'a>(
                 if send_data.len() > 1 {
                     let mut ax_part: Vec<u8> = send_data[0].clone();
 
-                    ax_part.push(core::parse_args().out_of_band_charid.into());
+                    ax_part.push(core::parse_args().desync_options.out_of_band_charid.into());
 
                     let _ = utils::set_ttl_raw(&socket, 1);
                     utils::write_oob_multi(&socket, ax_part);
-                    let _ = utils::set_ttl_raw(&socket, core::parse_args().default_ttl.into());
+                    let _ = utils::set_ttl_raw(
+                        &socket,
+                        core::parse_args().desync_options.default_ttl.into(),
+                    );
 
                     let _ = utils::send_duplicate(&socket, send_data[1].clone());
 
@@ -328,11 +337,11 @@ fn execute_l4_bypasses<'a>(
         }
     }
 
-    if config.disable_sack {
+    if config.socket_options.so_disable_sack {
         utils::disable_sack(&socket);
     }
 
-    if config.fake_packet_random {
+    if config.fake_packet_options.fake_packet_random {
         utils::send_drop(&socket, make_random_vec(32 as usize, 0xDEAD));
     }
 }
@@ -356,7 +365,11 @@ fn execute_l7_bypasses(config: &AuxConfig) {
 
     let rand_num: u64 = rand.next_rand().into();
 
-    let jitter_millis: u64 = config.l7_packet_jitter_max.try_into().unwrap_or(u64::MAX);
+    let jitter_millis: u64 = config
+        .socket_options
+        .so_l7_packet_jitter_max
+        .try_into()
+        .unwrap_or(u64::MAX);
 
     if jitter_millis > 0 {
         let random_jitter: u64 = ((rand_num * jitter_millis) / 256u64).into();
@@ -396,21 +409,24 @@ fn main() -> std::io::Result<()> {
     debug!("Working with a config: {config:?}");
 
     let listener: TcpListener = TcpListener::bind(
-        format!("{}:{}", config.bind_host, config.bind_port)
-            .replace("\"", "")
-            .replace("\"", ""),
+        format!(
+            "{}:{}",
+            config.bind_options.bind_host, config.bind_options.bind_port
+        )
+        .replace("\"", "")
+        .replace("\"", ""),
     )
     .unwrap();
 
     info!(
         "Socks5 proxy bound at {}:{}",
-        config.bind_host, config.bind_port
+        config.bind_options.bind_host, config.bind_options.bind_port
     );
 
-    if config.bind_iface != "default".to_string() {
+    if config.bind_options.bind_iface != "default".to_string() {
         info!(
             "OK! I'll bind every socket to interface {}, just as you've said",
-            config.bind_iface
+            config.bind_options.bind_iface
         );
     }
 

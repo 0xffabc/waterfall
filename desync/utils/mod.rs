@@ -73,7 +73,7 @@ pub mod utils {
 
         let _ = set_ttl_raw(&socket, 1);
         let _ = socket.write_all(&packet.as_slice())?;
-        let _ = set_ttl_raw(&socket, conf.default_ttl.into());
+        let _ = set_ttl_raw(&socket, conf.desync_options.default_ttl.into());
 
         Ok(())
     }
@@ -81,7 +81,7 @@ pub mod utils {
     #[cfg(unix)]
     pub fn send_drop(socket: &TcpStream, data: Vec<u8>) {
         let conf = core::parse_args();
-        let _ = set_ttl_raw(&socket, conf.fake_packet_ttl.into());
+        let _ = set_ttl_raw(&socket, conf.fake_packet_options.fake_packet_ttl.into());
 
         if cfg!(unix) {
             use libc::{send, MSG_OOB};
@@ -105,7 +105,7 @@ pub mod utils {
     #[cfg(windows)]
     pub fn send_drop(socket: &TcpStream, data: Vec<u8>) {
         let conf = core::parse_args();
-        let _ = set_ttl_raw(&socket, conf.fake_packet_ttl.into());
+        let _ = set_ttl_raw(&socket, conf.fake_packet_options.fake_packet_ttl.into());
 
         use std::os::windows::io::{AsRawSocket, RawSocket};
         use winapi::um::winsock2::{send, MSG_OOB};
@@ -117,11 +117,15 @@ pub mod utils {
                 rs.try_into().unwrap(),
                 (&data.as_slice()).as_ptr() as *const _,
                 1,
-                if conf.fake_as_oob { MSG_OOB } else { 0 },
+                if conf.fake_packet_options.fake_as_oob {
+                    MSG_OOB
+                } else {
+                    0
+                },
             );
         };
 
-        let _ = set_ttl_raw(&socket, conf.default_ttl.into());
+        let _ = set_ttl_raw(&socket, conf.desync_options.default_ttl.into());
     }
 
     pub fn slice_packet(source: Vec<u8>, index: u64) -> Vec<Vec<u8>> {

@@ -43,16 +43,17 @@ a",
 
         let conf = core::parse_args();
 
-        if let Some(data) = conf.fake_packet_override_data {
+        if let Some(data) = conf.fake_packet_options.fake_packet_override_data {
             return data;
-        } else if conf.fake_packet_send_http {
-            let fake_http: String = crate::fake::get_fake_http(conf.fake_packet_host);
+        } else if conf.fake_packet_options.fake_packet_send_http {
+            let fake_http: String =
+                crate::fake::get_fake_http(conf.fake_packet_options.fake_packet_host);
             let bytes: Vec<u8> = Vec::from(fake_http.as_bytes());
 
             return bytes;
         } else {
             let (sni_start, sni_end) = Sni::parse_sni_index(packet.clone());
-            let fake_sni: Vec<String> = String::from(conf.fake_packet_sni)
+            let fake_sni: Vec<String> = String::from(conf.fake_packet_options.fake_packet_sni)
                 .chars()
                 .map(|ch| String::from(ch))
                 .collect();
