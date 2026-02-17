@@ -137,6 +137,7 @@ pub struct AuxConfig {
     pub socket_options: SocketOptions,
     pub http_options: HttpOptions,
     pub desync_options: DesyncOptions,
+    pub dns_options: DnsOptions,
 
     #[serde(default = "default_whitelist_sni")]
     pub whitelist_sni: bool,
@@ -145,6 +146,16 @@ pub struct AuxConfig {
 
     #[serde(default)]
     pub strategies: Vec<Option<Strategy>>,
+}
+
+#[derive(Debug, Clone, Deserialize, PartialEq, Serialize)]
+#[serde(rename_all = "kebab-case", deny_unknown_fields)]
+pub struct DnsOptions {
+    #[serde(
+        default = "default_integrated_doh_enabled",
+        rename = "@integrated_doh_enabled"
+    )]
+    pub integrated_doh_enabled: bool,
 }
 
 impl Default for AuxConfig {
@@ -157,6 +168,9 @@ impl Default for AuxConfig {
                 bind_iface_mtu: default_bind_iface_mtu(),
                 bind_iface_ipv4: default_bind_iface_ipv4(),
                 bind_iface_ipv6: default_bind_iface_ipv6(),
+            },
+            dns_options: DnsOptions {
+                integrated_doh_enabled: default_integrated_doh_enabled(),
             },
             fake_packet_options: FakePacketOptions {
                 fake_packet_ttl: default_fake_packet_ttl(),
@@ -321,4 +335,8 @@ fn whitelist_sni_list() -> Vec<WhiteListedSNIWrapper> {
 
 fn default_fake_packet_override_data() -> Option<Vec<u8>> {
     None
+}
+
+fn default_integrated_doh_enabled() -> bool {
+    true
 }

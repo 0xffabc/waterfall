@@ -6,7 +6,7 @@ use std::{
     net::{SocketAddr, TcpStream},
 };
 
-use crate::core::aux_config::{AuxConfig, SocketOptions};
+use crate::core::aux_config::SocketOptions;
 use crate::core::parse_args;
 use socket2_ext::{AddressBinding, BindDeviceOption};
 

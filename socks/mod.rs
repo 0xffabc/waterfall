@@ -1,12 +1,13 @@
-use crate::IpParser;
 use crate::core;
+use crate::core::socket::SocketOps;
+use crate::IpParser;
 
-use std::{
-    io::{Read, Write, BufReader},
-    net::{TcpStream, SocketAddr},
-    thread
-};
 use std::io;
+use std::{
+    io::{BufReader, Read, Write},
+    net::{SocketAddr, TcpStream},
+    thread,
+};
 
 struct BufReaderHook<R, F> {
     inner: BufReader<R>,
@@ -22,12 +23,13 @@ where
 {
     fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
         let size = self.inner.read(buf)?;
-        if size == 0 || self.hops < self.max_hops {
+
+        if size == 0 || self.max_hops <= self.hops {
             return Ok(size);
         }
 
         let processed = (self.hook)(&self.socket, &buf[..size]);
-            
+
         buf[..processed.len()].copy_from_slice(&processed);
 
         self.hops += 1;
@@ -36,7 +38,10 @@ where
     }
 }
 
-pub fn socks5_proxy(proxy_client: &mut TcpStream, client_hook: impl Fn(&TcpStream, &[u8]) -> Vec<u8> + std::marker::Sync + std::marker::Send + 'static) {
+pub fn socks5_proxy(
+    proxy_client: &mut TcpStream,
+    client_hook: impl Fn(&TcpStream, &[u8]) -> Vec<u8> + std::marker::Sync + std::marker::Send + 'static,
+) {
     proxy_client
         .try_clone()
         .and_then(|mut client| {
@@ -45,7 +50,7 @@ pub fn socks5_proxy(proxy_client: &mut TcpStream, client_hook: impl Fn(&TcpStrea
             client.read(&mut buffer)?;
             client.write_all(&[5, 0])?;
             client.read(&mut buffer)?;
-            
+
             let parsed_data: IpParser = IpParser::parse(&buffer);
 
             let mut packet = vec![5, 0, 0, parsed_data.dest_addr_type];
@@ -61,18 +66,21 @@ pub fn socks5_proxy(proxy_client: &mut TcpStream, client_hook: impl Fn(&TcpStrea
 
             match parsed_data.host_raw.len() {
                 4 => {
-                    let ip_bytes: [u8; 4] = unsafe { *(parsed_data.host_raw.as_ptr() as *const [u8; 4]) };
+                    let ip_bytes: [u8; 4] =
+                        unsafe { *(parsed_data.host_raw.as_ptr() as *const [u8; 4]) };
 
                     Some(SocketAddr::new(ip_bytes.into(), parsed_data.port))
-                },
+                }
                 16 => {
-                    let ip_bytes: [u8; 16] = unsafe { *(parsed_data.host_raw.as_ptr() as *const [u8; 16]) };
+                    let ip_bytes: [u8; 16] =
+                        unsafe { *(parsed_data.host_raw.as_ptr() as *const [u8; 16]) };
 
                     Some(SocketAddr::new(ip_bytes.into(), parsed_data.port))
-                },
-                _ => None
-            }.and_then(|sock_addr| {
-                let server_socket = core::connect_socket(sock_addr);
+                }
+                _ => None,
+            }
+            .and_then(|sock_addr| {
+                let server_socket = SocketOps::connect_socket(sock_addr);
 
                 match server_socket {
                     Ok(mut socket) => {
@@ -81,7 +89,7 @@ pub fn socks5_proxy(proxy_client: &mut TcpStream, client_hook: impl Fn(&TcpStrea
                         drop(packet);
 
                         socket.set_nodelay(true).ok()?;
-                        
+
                         let client_reader = client.try_clone().ok()?;
                         let socket_reader = socket.try_clone().ok()?;
 
@@ -90,25 +98,25 @@ pub fn socks5_proxy(proxy_client: &mut TcpStream, client_hook: impl Fn(&TcpStrea
                             hook: client_hook,
                             socket: socket.try_clone().ok()?,
                             hops: 0,
-                            max_hops: core::parse_args().packet_hop
+                            max_hops: core::parse_args().desync_options.packet_hop,
                         };
 
                         thread::spawn(move || {
-                            drop(io::copy(
-                                &mut BufReader::new(socket_reader), 
-                                &mut client
-                            ));
+                            drop(io::copy(&mut BufReader::new(socket_reader), &mut client));
                         });
 
                         thread::spawn(move || {
                             drop(io::copy(&mut processor, &mut socket));
                         });
-                    },
-                    Err(_) => { }
+                    }
+                    Err(error) => {
+                        error!("Connection aborted: {error}");
+                    }
                 }
 
                 Some(())
-            }).unwrap_or(());
+            })
+            .unwrap_or(());
             Ok(())
         })
         .unwrap_or(());
