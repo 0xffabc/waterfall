@@ -24,76 +24,70 @@ pub struct WhiteListedSNIWrapper {
 #[derive(Debug, Clone, Deserialize, PartialEq, Serialize)]
 #[serde(rename_all = "kebab-case", deny_unknown_fields)]
 pub struct BindOptions {
-    #[serde(default = "default_bind_host", rename = "@bind-host")]
+    #[serde(default = "default_bind_host", rename = "@host")]
     pub bind_host: String,
-    #[serde(default = "default_bind_port", rename = "@bind-port")]
+    #[serde(default = "default_bind_port", rename = "@port")]
     pub bind_port: u16,
 
-    #[serde(default = "default_bind_iface", rename = "@bind-iface")]
+    #[serde(default = "default_bind_iface", rename = "@iface")]
     pub bind_iface: String,
-    #[serde(default = "default_bind_iface_mtu", rename = "@bind-iface-mtu")]
+    #[serde(default = "default_bind_iface_mtu", rename = "@iface-mtu")]
     pub bind_iface_mtu: u32,
-    #[serde(default = "default_bind_iface_ipv4", rename = "@bind-iface-ipv4-ip")]
+    #[serde(default = "default_bind_iface_ipv4", rename = "@iface-ipv4-ip")]
     pub bind_iface_ipv4: String,
-    #[serde(default = "default_bind_iface_ipv6", rename = "@bind-iface-ipv6-ip")]
+    #[serde(default = "default_bind_iface_ipv6", rename = "@iface-ipv6-ip")]
     pub bind_iface_ipv6: String,
 }
 
 #[derive(Debug, Clone, Deserialize, PartialEq, Serialize)]
 #[serde(rename_all = "kebab-case", deny_unknown_fields)]
 pub struct FakePacketOptions {
-    #[serde(default = "default_fake_packet_ttl", rename = "@fake-packet-ttl")]
+    #[serde(default = "default_fake_packet_ttl", rename = "@ttl")]
     pub fake_packet_ttl: u8,
-    #[serde(default = "default_fake_packet_sni", rename = "@fake-packet-sni")]
+    #[serde(default = "default_fake_packet_sni", rename = "@sni")]
     pub fake_packet_sni: String,
-    #[serde(default, rename = "@fake-packet-only-oob")]
+    #[serde(default, rename = "@only-oob")]
     pub fake_as_oob: bool,
 
-    #[serde(default, rename = "@fake-packet-protocol-http")]
+    #[serde(default, rename = "@protocol-http")]
     pub fake_packet_send_http: bool,
-    #[serde(
-        default = "default_fake_packet_host",
-        rename = "@fake-packet-protocol-http-host"
-    )]
+    #[serde(default = "default_fake_packet_host", rename = "@protocol-http-host")]
     pub fake_packet_host: String,
     #[serde(
         default = "default_fake_packet_override_data",
         skip_serializing_if = "Option::is_none",
-        rename = "@fake-packet-override-data"
+        rename = "@override-data"
     )]
     pub fake_packet_override_data: Option<Vec<u8>>,
-    #[serde(default, rename = "@fake-packet-send-twice")]
+    #[serde(default, rename = "send-twice")]
     pub fake_packet_double: bool,
-    #[serde(default, rename = "@fake-packet-send-reversed")]
+    #[serde(default, rename = "@send-reversed")]
     pub fake_packet_reversed: bool,
-    #[serde(default, rename = "@fake-packet-send-random-garbage")]
+    #[serde(default, rename = "@send-random-garbage")]
     pub fake_packet_random: bool,
-    #[serde(default, rename = "@fake-packet-send-clienthello")]
+    #[serde(default, rename = "@send-clienthello")]
     pub fake_clienthello: bool,
-    #[serde(
-        default = "default_fake_clienthello_sni",
-        rename = "@fake-clienthello-sni"
-    )]
+    #[serde(default = "default_fake_clienthello_sni", rename = "@clienthello-sni")]
     pub fake_clienthello_sni: String,
 }
 
 #[derive(Debug, Clone, Deserialize, PartialEq, Serialize)]
 #[serde(rename_all = "kebab-case", deny_unknown_fields)]
 pub struct SocketOptions {
-    #[serde(default = "default_so_recv_size", rename = "@socket-recv-size")]
+    #[serde(default = "default_so_recv_size", rename = "@recv-size")]
     pub so_recv_size: usize,
-    #[serde(default = "default_so_send_size", rename = "@socket-send-size")]
+    #[serde(default = "default_so_send_size", rename = "@send-size")]
     pub so_send_size: usize,
-    #[serde(default = "default_so_opt_cutoff", rename = "@socket-desync-cutoff-ms")]
+    #[serde(default = "default_so_opt_cutoff", rename = "@desync-cutoff-ms")]
     pub so_opt_cutoff: u64,
 
     #[serde(
         default = "default_l7_packet_jitter_max",
-        rename = "@socket-packet-delay-jitter"
+        rename = "@packet-delay-jitter"
     )]
     pub so_l7_packet_jitter_max: u64,
 
-    #[serde(default, rename = "@socket-disable-sack")]
+    #[serde(default, rename = "@disable-sack")]
     pub so_disable_sack: bool,
 
     #[serde(default = "default_oob_streamhell_data", rename = "@oob-hell-data")]
@@ -103,29 +97,26 @@ pub struct SocketOptions {
 #[derive(Debug, Clone, Deserialize, PartialEq, Serialize)]
 #[serde(rename_all = "kebab-case", deny_unknown_fields)]
 pub struct HttpOptions {
-    #[serde(default, rename = "@http-host-mixcaps")]
+    #[serde(default, rename = "@host-mixcaps")]
     pub http_host_cmix: bool,
-    #[serde(default, rename = "@http-host-remove-space")]
+    #[serde(default, rename = "@host-remove-space")]
     pub http_host_rmspace: bool,
-    #[serde(default, rename = "@http-host-space")]
+    #[serde(default, rename = "@host-space")]
     pub http_host_space: bool,
-    #[serde(default, rename = "@http-domain-mixcaps")]
+    #[serde(default, rename = "@domain-mixcaps")]
     pub http_domain_cmix: bool,
 }
 
 #[derive(Debug, Clone, Deserialize, PartialEq, Serialize)]
 #[serde(rename_all = "kebab-case", deny_unknown_fields)]
 pub struct DesyncOptions {
-    #[serde(
-        default = "default_disorder_packet_ttl",
-        rename = "@disorder-packet-ttl"
-    )]
+    #[serde(default = "default_disorder_packet_ttl", rename = "@packet-ttl")]
     pub disorder_packet_ttl: u8,
     #[serde(default = "default_default_ttl", rename = "@default-ttl")]
     pub default_ttl: u8,
     #[serde(default = "default_out_of_band_charid", rename = "@out-of-band-charid")]
     pub out_of_band_charid: u8,
-    #[serde(default = "default_packet_hop", rename = "@desync-packet-hops-max")]
+    #[serde(default = "default_packet_hop", rename = "@packet-hops-max")]
     pub packet_hop: u64,
 }
 

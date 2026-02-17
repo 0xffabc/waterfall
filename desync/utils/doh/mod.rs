@@ -1,7 +1,6 @@
-use std::net::{SocketAddr, SocketAddrV4, ToSocketAddrs};
+use std::net::ToSocketAddrs;
 
 use curl::easy::Easy;
-use socket2::SockAddr;
 
 use crate::{core::parse_args, desync::utils::ip::IpUtils};
 

@@ -1,43 +1,44 @@
 <AuxConfig>
     <bind-options
-        bind-host="192.168.1.101"
-        bind-port="443"
-        bind-iface="Ethernet"
-        bind-iface-mtu="1500"
-        bind-iface-ipv4-ip="0.0.0.0"
-        bind-iface-ipv6-ip="::"
+        host="127.0.0.1"
+        port="443"
+        iface="Ethernet"
+        iface-mtu="1500"
+        iface-ipv4-ip="0.0.0.0"
+        iface-ipv6-ip="::"
     />
     <fake-packet-options
-        fake-packet-ttl="64"
-        fake-packet-sni="yandex.ru"
-        fake-packet-only-oob="false"
-        fake-packet-protocol-http="false"
-        fake-packet-protocol-http-host="yandex.ru"
-        fake-packet-send-twice="false"
-        fake-packet-send-reversed="false"
-        fake-packet-send-random-garbage="false"
-        fake-packet-send-clienthello="false"
-        fake-clienthello-sni="yandex.ru"
-    />
+        ttl="64"
+        sni="yandex.ru"
+        only-oob="false"
+        protocol-http="false"
+        protocol-http-host="yandex.ru"
+        send-reversed="false"
+        send-random-garbage="false"
+        send-clienthello="false"
+        clienthello-sni="yandex.ru"
+    >
+        <send-twice>false</send-twice>
+    </fake-packet-options>
     <socket-options
-        socket-recv-size="65535"
-        socket-send-size="65535"
-        socket-desync-cutoff-ms="200"
-        socket-packet-delay-jitter="0"
-        socket-disable-sack="false"
+        recv-size="65535"
+        send-size="65535"
+        desync-cutoff-ms="200"
+        packet-delay-jitter="0"
+        disable-sack="false"
         oob-hell-data="yandex.ru"
     />
     <http-options
-        http-host-mixcaps="false"
-        http-host-remove-space="false"
-        http-host-space="false"
-        http-domain-mixcaps="false"
+        host-mixcaps="false"
+        host-remove-space="false"
+        host-space="false"
+        domain-mixcaps="false"
     />
     <desync-options
-        disorder-packet-ttl="8"
+        packet-ttl="8"
         default-ttl="4"
         out-of-band-charid="23"
-        desync-packet-hops-max="3"
+        packet-hops-max="3"
     />
     <dns-options integrated_doh_enabled="true" />
     <whitelist-sni>true</whitelist-sni>
