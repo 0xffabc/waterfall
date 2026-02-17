@@ -1,0 +1,55 @@
+<AuxConfig
+    bind-host="127.0.0.1"
+    bind-port="443"
+    bind-iface="default"
+    bind-iface-mtu="1500"
+    bind-iface-ipv4-ip="0.0.0.0"
+    bind-iface-ipv6-ip="::"
+    fake-packet-ttl="64"
+    fake-packet-sni="yandex.ru"
+    fake-packet-only-oob="false"
+    fake-packet-protocol-http="false"
+    fake-packet-protocol-http-host="yandex.ru"
+    fake-packet-send-twice="false"
+    fake-packet-send-reversed="false"
+    fake-packet-send-random-garbage="false"
+    socket-recv-size="65535"
+    socket-send-size="65535"
+    socket-desync-cutoff-ms="200"
+    socket-packet-delay-jitter="0"
+    socket-disable-sack="false"
+    fake-packet-send-clienthello="false"
+    fake-clienthello-sni="yandex.ru"
+    oob-hell-data="yandex.ru"
+    http-host-mixcaps="false"
+    http-host-remove-space="false"
+    http-host-space="false"
+    http-domain-mixcaps="false"
+    disorder-packet-ttl="8"
+    default-ttl="4"
+    out-of-band-charid="23"
+    desync-packet-hops-max="3"
+>
+    <whitelist-sni>true</whitelist-sni>
+    <whitelist-sni-list list="domain" value="discord.com" />
+    <whitelist-sni-list list="domain" value="youtube.com" />
+    <whitelist-sni-list list="domain" value="googlevideo.com" />
+    <strategies
+        type="FRAGTLS"
+        offset="3"
+        add-sni="true"
+        add-host="false"
+        negative_offset="false"
+    >
+        <filter-protocol>TCP</filter-protocol>
+        <filter-port>
+            <start>442</start>
+        </filter-port>
+        <filter-sni>
+            <WhiteListedSNIWrapper list="domain" value="youtube.com" />
+            <WhiteListedSNIWrapper list="domain" value="discord.com" />
+            <WhiteListedSNIWrapper list="domain" value="discordapp.com" />
+            <WhiteListedSNIWrapper list="domain" value="googlevideo.com" />
+        </filter-sni>
+    </strategies>
+</AuxConfig>
