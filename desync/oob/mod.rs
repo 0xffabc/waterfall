@@ -1,17 +1,27 @@
-
 pub mod oob {
-  pub fn get_split_packet(packet_buffer: &[u8], strategy: crate::core::Strategy, sni_data: &(u32, u32)) -> Vec<Vec<u8>> {
-    use crate::desync::utils::utils;
+    use crate::core::strategy::Strategy;
 
-    let (sni_start, _sni_end) = sni_data;
-    let middle: u64 = (strategy.base_index as u64) + if strategy.add_sni { *sni_start as u64 } else { 0 };
+    pub fn get_split_packet(
+        packet_buffer: &[u8],
+        strategy: Strategy,
+        sni_data: &(u32, u32),
+    ) -> Vec<Vec<u8>> {
+        use crate::desync::utils::utils;
 
-    if middle < packet_buffer.to_vec().len().try_into().unwrap() && middle > 0 {
-      let packet_parts: Vec<Vec<u8>> = utils::slice_packet(packet_buffer.to_vec(), middle);
+        let (sni_start, _sni_end) = sni_data;
+        let middle: u64 = (strategy.base_index as u64)
+            + if strategy.add_sni {
+                *sni_start as u64
+            } else {
+                0
+            };
 
-      return packet_parts;
-    } else {
-      return vec![packet_buffer.to_vec()];
-    }    
-  }
+        if middle < packet_buffer.to_vec().len().try_into().unwrap() && middle > 0 {
+            let packet_parts: Vec<Vec<u8>> = utils::slice_packet(packet_buffer.to_vec(), middle);
+
+            return packet_parts;
+        } else {
+            return vec![packet_buffer.to_vec()];
+        }
+    }
 }

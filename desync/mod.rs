@@ -1,6 +1,7 @@
+pub mod disoob;
 pub mod disorder;
-pub mod split;
 pub mod fake;
 pub mod oob;
-pub mod disoob;
+pub mod split;
+pub mod strategy_core;
 pub mod utils;
