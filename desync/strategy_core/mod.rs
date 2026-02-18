@@ -1,6 +1,8 @@
+use std::net::TcpStream;
+
 use crate::core::strategy::Strategy;
 
-trait SplitPacket {
+pub trait SplitPacket {
     fn get_split_packet(
         packet_buffer: &[u8],
         strategy: Strategy,
@@ -8,11 +10,6 @@ trait SplitPacket {
     ) -> Vec<Vec<u8>>;
 }
 
-trait StrategyExecutor {
-    fn execute_strategy(send_data: Vec<Vec<u8>>, current_data: &mut Vec<u8>);
-}
-
-trait StrategyConfig<T: From<String>> {
-    fn to_readable() -> T;
-    fn inject_config(conf: T);
+pub trait StrategyExecutor {
+    fn execute_strategy(send_data: Vec<Vec<u8>>, current_data: &mut Vec<u8>, socket: &'_ TcpStream);
 }

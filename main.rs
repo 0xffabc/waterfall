@@ -4,13 +4,15 @@ mod socks;
 mod tamper;
 
 use crate::core::aux_config::AuxConfig;
-use crate::core::aux_config::{WhiteListedSNI, WhiteListedSNIWrapper};
 use crate::core::strategy::Strategies;
-use crate::desync::disoob::disoob;
-use crate::desync::disorder::disorder;
-use crate::desync::fake::fake;
-use crate::desync::oob::oob;
-use crate::desync::split::split;
+use crate::desync::disoob::{Disoob, DisorderedOOB, Oob2};
+use crate::desync::disorder::{Disorder, Disorder2, DisorderD};
+use crate::desync::fake::{Fake, Fake2Disorder, FakeD, FakeInsert, FakeMD, FakeSurround, Meltdown};
+use crate::desync::fragtls::FragTls;
+use crate::desync::oob::{Oob, OobD, OobStream};
+use crate::desync::split::Split;
+use crate::desync::strategy_core::StrategyExecutor;
+use crate::desync::strategy_core::*;
 use crate::desync::utils::random::make_random_vec;
 use crate::desync::utils::random::Random;
 use crate::desync::utils::sni::Sni;
@@ -20,7 +22,6 @@ use crate::desync::utils::ip::IpParser;
 
 use crate::desync::utils::filter::Whitelist;
 
-use std::io::Write;
 use std::net::TcpListener;
 use std::net::TcpStream;
 
@@ -28,7 +29,7 @@ use std::thread;
 use std::time;
 
 fn execute_l4_bypasses<'a>(
-    mut socket: &'a TcpStream,
+    socket: &'a TcpStream,
     config: &'a AuxConfig,
     current_data: &'a mut Vec<u8>,
     sni_data: &'a (u32, u32),
@@ -102,237 +103,86 @@ fn execute_l4_bypasses<'a>(
             Strategies::NONE => {}
             Strategies::SPLIT => {
                 let send_data: Vec<Vec<u8>> =
-                    split::get_split_packet(&current_data, strategy, &sni_data);
+                    Split::get_split_packet(&current_data, strategy, &sni_data);
 
-                if send_data.len() > 1 {
-                    let _ = socket.write_all(&send_data[0]);
-
-                    *current_data = send_data[1].clone();
-                }
+                Split::execute_strategy(send_data, current_data, socket);
             }
             Strategies::DISORDER => {
                 let send_data: Vec<Vec<u8>> =
-                    disorder::get_split_packet(&current_data, strategy, &sni_data);
+                    DisorderD::<Disorder>::get_split_packet(&current_data, strategy, &sni_data);
 
-                if send_data.len() > 1 {
-                    let _ = utils::send_duplicate(&socket, send_data[0].clone());
-
-                    *current_data = send_data[1].clone();
-                }
+                Disorder::execute_strategy(send_data, current_data, socket);
             }
             Strategies::DISORDER2 => {
                 let send_data: Vec<Vec<u8>> =
-                    disorder::get_split_packet(&current_data, strategy, &sni_data);
+                    DisorderD::<Disorder2>::get_split_packet(&current_data, strategy, &sni_data);
 
-                if send_data.len() > 1 {
-                    let _ = socket.write_all(&send_data[0]);
-
-                    let _ = utils::send_duplicate(&socket, send_data[1].clone());
-
-                    *current_data = vec![];
-                }
+                Disorder2::execute_strategy(send_data, current_data, socket);
             }
             Strategies::FAKE => {
                 let send_data: Vec<Vec<u8>> =
-                    fake::get_split_packet(&current_data, strategy, &sni_data);
+                    FakeD::<Fake>::get_split_packet(&current_data, strategy, &sni_data);
 
-                if send_data.len() > 1 {
-                    let _ = utils::send_duplicate(&socket, send_data[0].clone());
-                    utils::send_drop(
-                        &socket,
-                        fake::get_fake_packet(
-                            send_data[if core::parse_args().fake_packet_options.fake_packet_reversed {
-                                0
-                            } else {
-                                1
-                            }]
-                            .clone(),
-                        ),
-                    );
-
-                    *current_data = send_data[1].clone();
-                }
+                Fake::execute_strategy(send_data, current_data, socket);
             }
             Strategies::FAKEMD => {
                 let send_data: Vec<Vec<u8>> =
-                    fake::get_split_packet(&current_data, strategy, &sni_data);
+                    FakeD::<FakeMD>::get_split_packet(&current_data, strategy, &sni_data);
 
-                if send_data.len() > 1 {
-                    let _ = socket.write_all(&send_data[0]);
-
-                    utils::send_drop(
-                        &socket,
-                        fake::get_fake_packet(
-                            send_data[if core::parse_args().fake_packet_options.fake_packet_reversed {
-                                0
-                            } else {
-                                1
-                            }]
-                            .clone(),
-                        ),
-                    );
-
-                    *current_data = send_data[1].clone();
-                }
+                FakeMD::execute_strategy(send_data, current_data, socket);
             }
             Strategies::FAKE2INSERT => {
                 let send_data: Vec<Vec<u8>> =
-                    fake::get_split_packet(&current_data, strategy, &sni_data);
+                    FakeD::<FakeInsert>::get_split_packet(&current_data, strategy, &sni_data);
 
-                if send_data.len() > 1 {
-                    let _ = socket.write_all(&send_data[0]);
-
-                    utils::send_drop(&socket, fake::get_fake_packet(send_data[1].clone()));
-
-                    *current_data = send_data[1].clone();
-                }
+                FakeInsert::execute_strategy(send_data, current_data, socket);
             }
             Strategies::FAKE2DISORDER => {
                 let send_data: Vec<Vec<u8>> =
-                    disorder::get_split_packet(&current_data, strategy, &sni_data);
+                    FakeD::<Fake2Disorder>::get_split_packet(&current_data, strategy, &sni_data);
 
-                if send_data.len() > 1 {
-                    let _ = socket.write_all(&send_data[0]);
-
-                    utils::send_drop(&socket, fake::get_fake_packet(send_data[1].clone()));
-
-                    let _ = utils::send_duplicate(&socket, send_data[1].clone());
-
-                    *current_data = vec![];
-                }
+                Fake2Disorder::execute_strategy(send_data, current_data, socket);
             }
             Strategies::FAKESURROUND => {
                 let send_data: Vec<Vec<u8>> =
-                    fake::get_split_packet(&current_data, strategy, &sni_data);
+                    FakeD::<FakeSurround>::get_split_packet(&current_data, strategy, &sni_data);
 
-                if send_data.len() > 1 {
-                    utils::send_drop(
-                        &socket,
-                        fake::get_fake_packet(
-                            send_data[if core::parse_args().fake_packet_options.fake_packet_reversed {
-                                0
-                            } else {
-                                1
-                            }]
-                            .clone(),
-                        ),
-                    );
-
-                    let _ = socket.write_all(&send_data[0]);
-
-                    utils::send_drop(
-                        &socket,
-                        fake::get_fake_packet(
-                            send_data[if core::parse_args().fake_packet_options.fake_packet_reversed {
-                                0
-                            } else {
-                                1
-                            }]
-                            .clone(),
-                        ),
-                    );
-
-                    *current_data = send_data[1].clone();
-                }
+                FakeSurround::execute_strategy(send_data, current_data, socket);
             }
             Strategies::MELTDOWN => {
-                let _ = utils::send_duplicate(&socket, current_data.clone());
+                let send_data =
+                    FakeD::<Meltdown>::get_split_packet(&current_data, strategy, &sni_data);
 
-                *current_data = vec![];
+                Meltdown::execute_strategy(send_data, current_data, socket);
             }
             Strategies::MELTDOWNUDP => {}
             Strategies::TRAIL => {}
             Strategies::OOB => {
                 let send_data: Vec<Vec<u8>> =
-                    oob::get_split_packet(&current_data, strategy, &sni_data);
+                    OobD::<Oob>::get_split_packet(&current_data, strategy, &sni_data);
 
-                if send_data.len() > 1 {
-                    let mut ax_part: Vec<u8> = send_data[0].clone();
-
-                    ax_part.push(core::parse_args().desync_options.out_of_band_charid.into());
-
-                    utils::write_oob_multi(&socket, ax_part);
-
-                    *current_data = send_data[1].clone();
-                }
+                Oob::execute_strategy(send_data, current_data, socket);
             }
             Strategies::OOBSTREAMHELL => {
                 let send_data: Vec<Vec<u8>> =
-                    oob::get_split_packet(&current_data, strategy, &sni_data);
+                    OobD::<OobStream>::get_split_packet(&current_data, strategy, &sni_data);
 
-                if send_data.len() > 1 {
-                    let ax_part: Vec<u8> = send_data[0].clone();
-
-                    let _ = socket.write_all(&ax_part);
-
-                    let oob_part = core::parse_args()
-                        .socket_options
-                        .so_oob_streamhell_data
-                        .clone();
-
-                    for byte in oob_part.as_bytes() {
-                        utils::write_oob_multi(&socket, vec![*byte]);
-                    }
-
-                    *current_data = send_data[1].clone();
-                }
+                OobStream::execute_strategy(send_data, current_data, socket);
             }
             Strategies::DISOOB => {
                 let send_data: Vec<Vec<u8>> =
-                    disoob::get_split_packet(&current_data, strategy, &sni_data);
+                    DisorderedOOB::<Disoob>::get_split_packet(&current_data, strategy, &sni_data);
 
-                if send_data.len() > 1 {
-                    let mut ax_part: Vec<u8> = send_data[0].clone();
-
-                    ax_part.push(core::parse_args().desync_options.out_of_band_charid.into());
-
-                    let _ = utils::set_ttl_raw(&socket, 1);
-                    utils::write_oob_multi(&socket, ax_part);
-                    let _ = utils::set_ttl_raw(
-                        &socket,
-                        core::parse_args().desync_options.default_ttl.into(),
-                    );
-
-                    *current_data = send_data[1].clone();
-                }
+                Disoob::execute_strategy(send_data, current_data, socket);
             }
             Strategies::OOB2 => {
                 let send_data: Vec<Vec<u8>> =
-                    disoob::get_split_packet(&current_data, strategy, &sni_data);
+                    DisorderedOOB::<Oob2>::get_split_packet(&current_data, strategy, &sni_data);
 
-                if send_data.len() > 1 {
-                    let mut ax_part: Vec<u8> = send_data[0].clone();
-
-                    ax_part.push(core::parse_args().desync_options.out_of_band_charid.into());
-
-                    let _ = utils::set_ttl_raw(&socket, 1);
-                    utils::write_oob_multi(&socket, ax_part);
-                    let _ = utils::set_ttl_raw(
-                        &socket,
-                        core::parse_args().desync_options.default_ttl.into(),
-                    );
-
-                    let _ = utils::send_duplicate(&socket, send_data[1].clone());
-
-                    *current_data = vec![];
-                }
+                Oob2::execute_strategy(send_data, current_data, socket);
             }
             Strategies::FRAGTLS => {
-                if strategy.add_sni {
-                    let (sni_start, _sni_end) = &sni_data;
-
-                    *current_data = tamper::edit_tls(
-                        current_data.to_vec(),
-                        (strategy.base_index + (*sni_start as i64))
-                            .try_into()
-                            .unwrap(),
-                    );
-                } else {
-                    *current_data = tamper::edit_tls(
-                        current_data.to_vec(),
-                        strategy.base_index.try_into().unwrap(),
-                    );
-                }
+                FragTls::execute_strategy(current_data, strategy, sni_data);
             }
         }
     }

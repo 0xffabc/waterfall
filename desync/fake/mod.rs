@@ -1,30 +1,18 @@
-pub mod fake {
-    use crate::{core::strategy::Strategy, desync::utils::sni::Sni};
+use std::marker::PhantomData;
 
-    pub fn get_split_packet(
-        packet_buffer: &[u8],
-        strategy: Strategy,
-        sni_data: &(u32, u32),
-    ) -> Vec<Vec<u8>> {
-        use crate::desync::utils::utils;
+use crate::{
+    core::strategy::Strategy,
+    desync::{
+        strategy_core::{SplitPacket, StrategyExecutor},
+        utils::{sni::Sni, utils},
+    },
+};
 
-        let (sni_start, _sni_end) = sni_data;
-        let middle: u64 = (strategy.base_index as u64)
-            + if strategy.add_sni {
-                *sni_start as u64
-            } else {
-                0
-            };
+pub struct FakeD<T> {
+    _marker: PhantomData<T>,
+}
 
-        if middle < packet_buffer.to_vec().len().try_into().unwrap() && middle > 0 {
-            let packet_parts: Vec<Vec<u8>> = utils::slice_packet(packet_buffer.to_vec(), middle);
-
-            return packet_parts;
-        } else {
-            return vec![packet_buffer.to_vec()];
-        }
-    }
-
+impl<T> FakeD<T> {
     pub fn get_fake_http(host: String) -> String {
         return format!(
             "GET / HTTP 1.1
@@ -46,8 +34,7 @@ a",
         if let Some(data) = conf.fake_packet_options.fake_packet_override_data {
             return data;
         } else if conf.fake_packet_options.fake_packet_send_http {
-            let fake_http: String =
-                crate::fake::get_fake_http(conf.fake_packet_options.fake_packet_host);
+            let fake_http: String = Self::get_fake_http(conf.fake_packet_options.fake_packet_host);
             let bytes: Vec<u8> = Vec::from(fake_http.as_bytes());
 
             return bytes;
@@ -76,5 +63,193 @@ a",
 
             return packet.clone();
         }
+    }
+}
+
+impl<T> SplitPacket for FakeD<T> {
+    fn get_split_packet(
+        packet_buffer: &[u8],
+        strategy: Strategy,
+        sni_data: &(u32, u32),
+    ) -> Vec<Vec<u8>> {
+        use crate::desync::utils::utils;
+
+        let (sni_start, _sni_end) = sni_data;
+        let middle: u64 = (strategy.base_index as u64)
+            + if strategy.add_sni {
+                *sni_start as u64
+            } else {
+                0
+            };
+
+        if middle < packet_buffer.to_vec().len().try_into().unwrap() && middle > 0 {
+            let packet_parts: Vec<Vec<u8>> = utils::slice_packet(packet_buffer.to_vec(), middle);
+
+            return packet_parts;
+        } else {
+            return vec![packet_buffer.to_vec()];
+        }
+    }
+}
+
+pub struct Fake2Disorder;
+pub struct FakeSurround;
+pub struct FakeInsert;
+pub struct Meltdown;
+pub struct FakeMD;
+pub struct Fake;
+
+impl StrategyExecutor for Fake {
+    fn execute_strategy(
+        send_data: Vec<Vec<u8>>,
+        current_data: &mut Vec<u8>,
+        socket: &'_ std::net::TcpStream,
+    ) {
+        if send_data.len() > 1 {
+            let _ = utils::send_duplicate(&socket, send_data[0].clone());
+            utils::send_drop(
+                &socket,
+                FakeD::<Fake>::get_fake_packet(
+                    send_data[if crate::core::parse_args()
+                        .fake_packet_options
+                        .fake_packet_reversed
+                    {
+                        0
+                    } else {
+                        1
+                    }]
+                    .clone(),
+                ),
+            );
+
+            *current_data = send_data[1].clone();
+        }
+    }
+}
+
+use std::io::Write;
+
+impl StrategyExecutor for FakeMD {
+    fn execute_strategy(
+        send_data: Vec<Vec<u8>>,
+        current_data: &mut Vec<u8>,
+        mut socket: &'_ std::net::TcpStream,
+    ) {
+        if send_data.len() > 1 {
+            let _ = socket.write_all(&send_data[0]);
+
+            utils::send_drop(
+                &socket,
+                FakeD::<FakeMD>::get_fake_packet(
+                    send_data[if crate::core::parse_args()
+                        .fake_packet_options
+                        .fake_packet_reversed
+                    {
+                        0
+                    } else {
+                        1
+                    }]
+                    .clone(),
+                ),
+            );
+
+            *current_data = send_data[1].clone();
+        }
+    }
+}
+
+impl StrategyExecutor for FakeInsert {
+    fn execute_strategy(
+        send_data: Vec<Vec<u8>>,
+        current_data: &mut Vec<u8>,
+        mut socket: &'_ std::net::TcpStream,
+    ) {
+        if send_data.len() > 1 {
+            let _ = socket.write_all(&send_data[0]);
+
+            utils::send_drop(
+                &socket,
+                FakeD::<FakeInsert>::get_fake_packet(send_data[1].clone()),
+            );
+
+            *current_data = send_data[1].clone();
+        }
+    }
+}
+
+impl StrategyExecutor for Fake2Disorder {
+    fn execute_strategy(
+        send_data: Vec<Vec<u8>>,
+        current_data: &mut Vec<u8>,
+        mut socket: &'_ std::net::TcpStream,
+    ) {
+        if send_data.len() > 1 {
+            let _ = socket.write_all(&send_data[0]);
+
+            utils::send_drop(
+                &socket,
+                FakeD::<Fake2Disorder>::get_fake_packet(send_data[1].clone()),
+            );
+
+            let _ = utils::send_duplicate(&socket, send_data[1].clone());
+
+            *current_data = vec![];
+        }
+    }
+}
+
+impl StrategyExecutor for FakeSurround {
+    fn execute_strategy(
+        send_data: Vec<Vec<u8>>,
+        current_data: &mut Vec<u8>,
+        mut socket: &'_ std::net::TcpStream,
+    ) {
+        if send_data.len() > 1 {
+            utils::send_drop(
+                &socket,
+                FakeD::<FakeSurround>::get_fake_packet(
+                    send_data[if crate::core::parse_args()
+                        .fake_packet_options
+                        .fake_packet_reversed
+                    {
+                        0
+                    } else {
+                        1
+                    }]
+                    .clone(),
+                ),
+            );
+
+            let _ = socket.write_all(&send_data[0]);
+
+            utils::send_drop(
+                &socket,
+                FakeD::<FakeSurround>::get_fake_packet(
+                    send_data[if crate::core::parse_args()
+                        .fake_packet_options
+                        .fake_packet_reversed
+                    {
+                        0
+                    } else {
+                        1
+                    }]
+                    .clone(),
+                ),
+            );
+
+            *current_data = send_data[1].clone();
+        }
+    }
+}
+
+impl StrategyExecutor for Meltdown {
+    fn execute_strategy(
+        _send_data: Vec<Vec<u8>>,
+        current_data: &mut Vec<u8>,
+        socket: &'_ std::net::TcpStream,
+    ) {
+        let _ = utils::send_duplicate(&socket, current_data.clone());
+
+        *current_data = vec![];
     }
 }

@@ -1,7 +1,19 @@
-pub mod disorder {
-    use crate::core::strategy::Strategy;
+use std::marker::PhantomData;
 
-    pub fn get_split_packet(
+use crate::{
+    core::strategy::Strategy,
+    desync::strategy_core::{SplitPacket, StrategyExecutor},
+};
+
+pub struct DisorderD<T> {
+    _marker: PhantomData<T>,
+}
+
+pub struct Disorder;
+pub struct Disorder2;
+
+impl<T> SplitPacket for DisorderD<T> {
+    fn get_split_packet(
         packet_buffer: &[u8],
         strategy: Strategy,
         sni_data: &(u32, u32),
@@ -22,6 +34,38 @@ pub mod disorder {
             return packet_parts;
         } else {
             return vec![packet_buffer.to_vec()];
+        }
+    }
+}
+
+impl StrategyExecutor for Disorder {
+    fn execute_strategy(
+        send_data: Vec<Vec<u8>>,
+        current_data: &mut Vec<u8>,
+        socket: &'_ std::net::TcpStream,
+    ) {
+        if send_data.len() > 1 {
+            let _ = crate::utils::send_duplicate(&socket, send_data[0].clone());
+
+            *current_data = send_data[1].clone();
+        }
+    }
+}
+
+impl StrategyExecutor for Disorder2 {
+    fn execute_strategy(
+        send_data: Vec<Vec<u8>>,
+        current_data: &mut Vec<u8>,
+        mut socket: &'_ std::net::TcpStream,
+    ) {
+        use std::io::Write;
+
+        if send_data.len() > 1 {
+            let _ = socket.write_all(&send_data[0]);
+
+            let _ = crate::utils::send_duplicate(&socket, send_data[1].clone());
+
+            *current_data = vec![];
         }
     }
 }

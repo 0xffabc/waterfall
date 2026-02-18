@@ -1,7 +1,11 @@
-pub mod split {
-    use crate::core::strategy::Strategy;
+use crate::core::strategy::Strategy;
+use crate::desync::strategy_core::{SplitPacket, StrategyExecutor};
+use std::io::Write;
 
-    pub fn get_split_packet(
+pub struct Split;
+
+impl SplitPacket for Split {
+    fn get_split_packet(
         packet_buffer: &[u8],
         strategy: Strategy,
         sni_data: &(u32, u32),
@@ -22,6 +26,20 @@ pub mod split {
             return packet_parts;
         } else {
             return vec![packet_buffer.to_vec()];
+        }
+    }
+}
+
+impl StrategyExecutor for Split {
+    fn execute_strategy(
+        send_data: Vec<Vec<u8>>,
+        current_data: &mut Vec<u8>,
+        mut socket: &'_ std::net::TcpStream,
+    ) {
+        if send_data.len() > 1 {
+            let _ = socket.write_all(&send_data[0]);
+
+            *current_data = send_data[1].clone();
         }
     }
 }

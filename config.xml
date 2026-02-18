@@ -1,7 +1,7 @@
 <AuxConfig>
     <bind-options
         host="127.0.0.1"
-        port="443"
+        port="1080"
         iface="Ethernet"
         iface-mtu="1500"
         iface-ipv4-ip="0.0.0.0"
