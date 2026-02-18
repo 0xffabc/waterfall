@@ -45,6 +45,101 @@ examples/ are outdated, use /config.xml instead
 Current limitations: lack of BPF filter config, lack of mod utils/random's seed customization
 You might want to use `bpf_asm` to wrie BPF filters after they get considered by the config
 
+Disabling selective acknowledgment
+----------------------------------
+
+This is useful for fake packets, since windows acts weird with them, and resends the whole CH at some index.
+Please, DON'T use this with disorder group. Consider using jitter socket option instead
+It will prevent windows from holding separated packets in the send buffer, even while NO_DELAY option isn't available (for some reason)
+
+Sometimes it's easier to modify the strategy and put a disorder group strategy before the fake packet.
+Use SACK disabler as the last resort.
+
+Note: You can't disable SACK on socket level on windows, so you'll have to edit the registry value `SackOpts` in `HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Services\Tcpip\Parameters` and set it to DWORD 0
+
+SACK will be disabled for every connection, and not just the ones the proxy makes.
+
+Router rules
+------------
+
+Sometimes you might want to forward a part of traffic to a socks5 proxy (or even block it)
+Waterfall's internal DPI tries to retrieve SNI (server name indication), IP and Socks5 DNS requests from what it gets
+An example rule would block every visible clienthello to gateway.discord.gg
+
+```
+<router-options>
+  <!-- Prevent discord from connecting to main gateway URL -->
+  
+  <rules
+    scope="SNI"
+    type="Forward"
+    match="*.discord.gg"
+    exec="block 127.0.0.1:9050"
+  />
+</router-options>
+```
+
+Available router scopes: SNI, DnsQuery, IP (4, 6)
+Router rule types: Forward (socks5, block), FakeDNS
+* FakeDNS is useful for forwarding a domain to its correct IP (basically, a userland replacement of hosts file). A common case is resolving ntc.party to <pretend that ntc.party's IPv4 is there>
+
+FakeDNS will run before the DOH resolver and bypass it completely, and can be only used with DnsQuery scope.
+Forward is not available on SNI, unless it's a `block` type.
+
+Global strategy whitelist
+-------------------------
+
+Denoted as 
+
+```
+<whitelist-sni-list list="domain" value="googlevideo.com" />
+```
+
+Where list is WhiteListedSNI (basically domain, file, path)
+File and path aren't considered as for now
+
+Strategy config
+---------------
+
+```
+<strategies
+        type="FRAGTLS"
+        offset="3"
+        add-sni="true"
+        add-host="false"
+        negative_offset="false"
+    >
+        <filter-protocol>TCP</filter-protocol>
+        <filter-port>
+            <start>442</start>
+        </filter-port>
+        <filter-sni>
+            <WhiteListedSNIWrapper list="domain" value="youtube.com" />
+            <WhiteListedSNIWrapper list="domain" value="discord.com" />
+            <WhiteListedSNIWrapper list="domain" value="discordapp.com" />
+            <WhiteListedSNIWrapper list="domain" value="googlevideo.com" />
+        </filter-sni>
+    </strategies>
+```
+
+Available types
+* NONE - Noop action
+* SPLIT - Segments the packet. Corresponds to geneva's `fragment`
+* DISORDER - Segments the packet, sends the first with low TTL
+* DISORDER2 - The same as DISORDER, but the second is sent with low TTL instead
+* FAKEMD - The same as SPLIT, but we get a fake in between
+* FAKE - The same as FAKEMD, but DISORDER is used instead of SPLIT
+* FAKE2INSERT - The same as FAKEMD, but ignores most fake options
+* FAKE2DISORDER - The same as FAKEMD, but DISORDER2 is used
+* FAKESURROUND - SPLIT segments are surrounded with fakes
+* MELTDOWN - TTL=1 for the whole packet. In other words, duplicates the remaining part from previous operations. Corresponds to geneva's `duplicate`
+* OOB - inserts an OOB byte in between of the segments
+* OOBSTREAMHELL - inserts A LOT of OOB bytes
+* DISOOB - DISORDER + OOB
+* OOB2 - DISORDER2 + OOB
+* FRAGTLS - Splits TLS header in two parts, used to be a powerful counter-attack against GFW. For more info: https://upb-syssec.github.io/blog/2023/record-fragmentation/. A particular case of geneva's `tamper`
+* 
+
 Implementation details
 ----------------------
 
@@ -57,5 +152,15 @@ Implementation details
 Planned features
 ----------------
 
-- Routing rules (<router> tag, <rule> tag, <action> tag)
 - BPF filter config (<BPFilters>, <BPF />)
+- Config verification
+- Eventually waterfall will become a more advanced traffic inspection and modification tool, rather than just a censorship evasion tool
+- Eventually waterfall will become an autonomous censorship evasion tool
+- Socks2tun will be supported
+
+Useful sources
+--------------
+
+https://geneva.cs.umd.edu/papers/geneva_ccs19.pdf - Waterfall inherits geneva's strategy branching
+https://upb-syssec.github.io/blog/2023/record-fragmentation/ - FRAGTLS
+https://github.com/hufrea/byedpi - Significantly shaped my views on how a DPI bypass would look like

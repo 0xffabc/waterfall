@@ -3,8 +3,6 @@ mod desync;
 mod socks;
 mod tamper;
 
-use winapi::vc::excpt::EXCEPTION_CONTINUE_EXECUTION;
-
 use crate::core::aux_config::AuxConfig;
 use crate::core::strategy::Strategies;
 use crate::desync::disoob::{Disoob, DisorderedOOB, Oob2};

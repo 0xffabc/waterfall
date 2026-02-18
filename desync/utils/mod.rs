@@ -260,5 +260,7 @@ pub mod utils {
         unsafe {
             std::arch::asm!("nop");
         }
+
+        warn!("disable_sack compiles to a `nop` instruction on windows. Please set registry key `HKEY_LOCAL_MACHINE/SYSTEM/CurrentControlSet/Services/Tcpip/Parameters SackOpts=REG_DWORD(0)`");
     }
 }

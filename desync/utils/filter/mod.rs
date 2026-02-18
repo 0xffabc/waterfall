@@ -55,8 +55,6 @@ impl Whitelist {
                                 }
                             }
                         }
-                    } else {
-                        debug!("Rule exec match failed for {sni_string}");
                     }
 
                     break;
