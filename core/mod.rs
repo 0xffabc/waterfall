@@ -1,5 +1,7 @@
 use std::fs::{self, File};
 use std::io::Read;
+use std::path::Path;
+use std::sync::{LazyLock, Mutex};
 
 pub mod aux_config;
 pub mod socket;
@@ -16,7 +18,34 @@ use libc::exit;
 use quick_xml::se::Serializer;
 use serde::{Deserialize, Serialize};
 
+static CONFIG: LazyLock<Mutex<Option<AuxConfig>>> = LazyLock::new(|| Mutex::new(None));
+
 use crate::core::aux_config::AuxConfig;
+
+use notify::{Event, RecursiveMode, Result, Watcher};
+
+pub fn core_launch_task() -> Result<()> {
+    let (tx, rx) = std::sync::mpsc::channel::<Result<Event>>();
+
+    let mut watcher = notify::recommended_watcher(tx)?;
+
+    watcher.watch(Path::new("./config.xml"), RecursiveMode::Recursive)?;
+
+    for res in rx {
+        match res {
+            Ok(_) => {
+                let mut lock = CONFIG.lock().unwrap();
+
+                *lock = Some(load_config());
+
+                info!("Config hot-reloaded!");
+            }
+            Err(e) => error!("Error while watching the config.xml file: {e:?}"),
+        }
+    }
+
+    Ok(())
+}
 
 fn create_config() {
     let mut buffer = String::new();
@@ -33,7 +62,7 @@ fn create_config() {
     fs::write("./config.xml", buffer).expect("Failed to write the file");
 }
 
-pub fn parse_args() -> AuxConfig {
+fn load_config() -> AuxConfig {
     let mut xml_data = String::new();
 
     let file = File::open("./config.xml");
@@ -62,4 +91,17 @@ pub fn parse_args() -> AuxConfig {
     let config: AuxConfig = quick_xml::de::from_str(&xml_data).expect("Failed to deserialize");
 
     config
+}
+
+pub fn parse_args() -> AuxConfig {
+    let mut lock = CONFIG.lock().unwrap();
+
+    match lock.clone() {
+        Some(config) => config,
+        None => {
+            *lock = Some(load_config());
+
+            lock.as_ref().unwrap().clone()
+        }
+    }
 }

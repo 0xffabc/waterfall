@@ -250,6 +250,10 @@ fn main() -> std::io::Result<()> {
         std::env::set_var("RUST_LOG", "trace");
     }
 
+    thread::spawn(|| {
+        let _ = crate::core::core_launch_task();
+    });
+
     pretty_env_logger::init_timed();
 
     info!("Waterfall is starting");
