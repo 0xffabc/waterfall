@@ -55,7 +55,7 @@
     <whitelist-sni-list list="domain" value="youtube.com" />
     <whitelist-sni-list list="domain" value="googlevideo.com" />
     <strategies
-        type="SPLIT"
+        type="NONE"
         offset="5"
         add-sni="true"
         add-host="false"

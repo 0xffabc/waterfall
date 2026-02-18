@@ -1,43 +1,15 @@
+use crate::core::parse_args;
 use crate::core::router::{Router, RouterInterjectionStatus};
 use crate::core::socket::SocketOps;
-use crate::core::{self, parse_args};
+use crate::socks::pipe::pipe_sockets;
 use crate::IpParser;
 
-use std::io;
+mod pipe;
+
 use std::{
-    io::{BufReader, Read, Write},
+    io::{Read, Write},
     net::{SocketAddr, TcpStream},
-    thread,
 };
-
-struct BufReaderHook<R, F> {
-    inner: BufReader<R>,
-    hook: F,
-    socket: TcpStream,
-    hops: u64,
-    max_hops: u64,
-}
-
-impl<R: Read, F> Read for BufReaderHook<R, F>
-where
-    F: Fn(&TcpStream, &[u8]) -> Vec<u8> + Send + Sync + 'static,
-{
-    fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
-        let size = self.inner.read(buf)?;
-
-        if size == 0 || self.max_hops <= self.hops {
-            return Ok(size);
-        }
-
-        let processed = (self.hook)(&self.socket, &buf[..size]);
-
-        buf[..processed.len()].copy_from_slice(&processed);
-
-        self.hops += 1;
-
-        Ok(processed.len())
-    }
-}
 
 pub fn socks5_proxy(
     proxy_client: &mut TcpStream,
@@ -91,31 +63,12 @@ pub fn socks5_proxy(
                 let server_socket = SocketOps::connect_socket(sock_addr);
 
                 match server_socket {
-                    Ok(mut socket) => {
+                    Ok(socket) => {
                         client.write_all(&packet).ok()?;
 
                         drop(packet);
 
-                        socket.set_nodelay(true).ok()?;
-
-                        let client_reader = client.try_clone().ok()?;
-                        let socket_reader = socket.try_clone().ok()?;
-
-                        let mut processor = BufReaderHook {
-                            inner: BufReader::new(client_reader),
-                            hook: client_hook,
-                            socket: socket.try_clone().ok()?,
-                            hops: 0,
-                            max_hops: core::parse_args().desync_options.packet_hop,
-                        };
-
-                        thread::spawn(move || {
-                            drop(io::copy(&mut BufReader::new(socket_reader), &mut client));
-                        });
-
-                        thread::spawn(move || {
-                            drop(io::copy(&mut processor, &mut socket));
-                        });
+                        pipe_sockets(client, socket, client_hook);
                     }
                     Err(error) => {
                         error!("Connection aborted: {error}");
