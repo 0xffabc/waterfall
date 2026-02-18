@@ -148,6 +148,7 @@ Implementation details
 * SNI, IP router scopes are handled before the socket creation, to allow FORWARD router rule
 * Fakedns action type makes sense only with the DnsQuery router scope
 * Router will use the first rule available for current context and ignore every other one
+* Current SOCKS5 proxy is inefficient and uses a BufReader/BufWriter pair, which causes regressed network latencies
 
 Planned features
 ----------------
@@ -157,6 +158,7 @@ Planned features
 - Eventually waterfall will become a more advanced traffic inspection and modification tool, rather than just a censorship evasion tool
 - Eventually waterfall will become an autonomous censorship evasion tool
 - Socks2tun will be supported
+- Performance regress (from 31ms to 80ms on krunker.io) will be fixed
 
 Useful sources
 --------------

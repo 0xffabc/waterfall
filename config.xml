@@ -42,12 +42,12 @@
     />
     <dns-options integrated_doh_enabled="true" />
     <router-options>
-        <!-- Prevent discord from connecting to main gateway URL -->
+        <!-- Note: put an actual IPv4 here -->
         <rules
-            scope="SNI"
-            type="Forward"
-            match="*.discord.gg"
-            exec="block 127.0.0.1:9050"
+            scope="DnsQuery"
+            type="FakeDNS"
+            match="ntc.party"
+            exec="30.255.77.28"
         />
     </router-options>
     <whitelist-sni>true</whitelist-sni>
@@ -55,8 +55,8 @@
     <whitelist-sni-list list="domain" value="youtube.com" />
     <whitelist-sni-list list="domain" value="googlevideo.com" />
     <strategies
-        type="FRAGTLS"
-        offset="3"
+        type="SPLIT"
+        offset="5"
         add-sni="true"
         add-host="false"
         negative_offset="false"
@@ -70,6 +70,7 @@
             <WhiteListedSNIWrapper list="domain" value="discord.com" />
             <WhiteListedSNIWrapper list="domain" value="discordapp.com" />
             <WhiteListedSNIWrapper list="domain" value="googlevideo.com" />
+            <WhiteListedSNIWrapper list="domain" value="krunker.io" />
         </filter-sni>
     </strategies>
 </AuxConfig>
