@@ -3,6 +3,8 @@ mod desync;
 mod socks;
 mod tamper;
 
+use anyhow::Result;
+
 use crate::core::aux_config::AuxConfig;
 use crate::core::strategy::Strategies;
 use crate::desync::disoob::{Disoob, DisorderedOOB, Oob2};
@@ -28,12 +30,12 @@ use std::net::TcpStream;
 use std::thread;
 use std::time;
 
-fn execute_l4_bypasses<'a>(
-    socket: &'a TcpStream,
+async fn execute_l4_bypasses<'a>(
+    socket: &mut tokio::net::TcpStream,
     config: &'a AuxConfig,
     current_data: &'a mut Vec<u8>,
     sni_data: &'a (u32, u32),
-) {
+) -> Result<()> {
     if sni_data != &(0, 0) && config.fake_packet_options.fake_clienthello {
         utils::send_drop(
             &socket,
@@ -113,55 +115,55 @@ fn execute_l4_bypasses<'a>(
                 let send_data: Vec<Vec<u8>> =
                     Split::get_split_packet(&current_data, strategy, &sni_data);
 
-                Split::execute_strategy(send_data, current_data, socket);
+                Split::execute_strategy(send_data, current_data, socket).await?;
             }
             Strategies::DISORDER => {
                 let send_data: Vec<Vec<u8>> =
                     DisorderD::<Disorder>::get_split_packet(&current_data, strategy, &sni_data);
 
-                Disorder::execute_strategy(send_data, current_data, socket);
+                Disorder::execute_strategy(send_data, current_data, socket).await?;
             }
             Strategies::DISORDER2 => {
                 let send_data: Vec<Vec<u8>> =
                     DisorderD::<Disorder2>::get_split_packet(&current_data, strategy, &sni_data);
 
-                Disorder2::execute_strategy(send_data, current_data, socket);
+                Disorder2::execute_strategy(send_data, current_data, socket).await?;
             }
             Strategies::FAKE => {
                 let send_data: Vec<Vec<u8>> =
                     FakeD::<Fake>::get_split_packet(&current_data, strategy, &sni_data);
 
-                Fake::execute_strategy(send_data, current_data, socket);
+                Fake::execute_strategy(send_data, current_data, socket).await?;
             }
             Strategies::FAKEMD => {
                 let send_data: Vec<Vec<u8>> =
                     FakeD::<FakeMD>::get_split_packet(&current_data, strategy, &sni_data);
 
-                FakeMD::execute_strategy(send_data, current_data, socket);
+                FakeMD::execute_strategy(send_data, current_data, socket).await?;
             }
             Strategies::FAKE2INSERT => {
                 let send_data: Vec<Vec<u8>> =
                     FakeD::<FakeInsert>::get_split_packet(&current_data, strategy, &sni_data);
 
-                FakeInsert::execute_strategy(send_data, current_data, socket);
+                FakeInsert::execute_strategy(send_data, current_data, socket).await?;
             }
             Strategies::FAKE2DISORDER => {
                 let send_data: Vec<Vec<u8>> =
                     FakeD::<Fake2Disorder>::get_split_packet(&current_data, strategy, &sni_data);
 
-                Fake2Disorder::execute_strategy(send_data, current_data, socket);
+                Fake2Disorder::execute_strategy(send_data, current_data, socket).await?;
             }
             Strategies::FAKESURROUND => {
                 let send_data: Vec<Vec<u8>> =
                     FakeD::<FakeSurround>::get_split_packet(&current_data, strategy, &sni_data);
 
-                FakeSurround::execute_strategy(send_data, current_data, socket);
+                FakeSurround::execute_strategy(send_data, current_data, socket).await?;
             }
             Strategies::MELTDOWN => {
                 let send_data =
                     FakeD::<Meltdown>::get_split_packet(&current_data, strategy, &sni_data);
 
-                Meltdown::execute_strategy(send_data, current_data, socket);
+                Meltdown::execute_strategy(send_data, current_data, socket).await?;
             }
             Strategies::MELTDOWNUDP => {}
             Strategies::TRAIL => {}
@@ -169,25 +171,25 @@ fn execute_l4_bypasses<'a>(
                 let send_data: Vec<Vec<u8>> =
                     OobD::<Oob>::get_split_packet(&current_data, strategy, &sni_data);
 
-                Oob::execute_strategy(send_data, current_data, socket);
+                Oob::execute_strategy(send_data, current_data, socket).await?;
             }
             Strategies::OOBSTREAMHELL => {
                 let send_data: Vec<Vec<u8>> =
                     OobD::<OobStream>::get_split_packet(&current_data, strategy, &sni_data);
 
-                OobStream::execute_strategy(send_data, current_data, socket);
+                OobStream::execute_strategy(send_data, current_data, socket).await?;
             }
             Strategies::DISOOB => {
                 let send_data: Vec<Vec<u8>> =
                     DisorderedOOB::<Disoob>::get_split_packet(&current_data, strategy, &sni_data);
 
-                Disoob::execute_strategy(send_data, current_data, socket);
+                Disoob::execute_strategy(send_data, current_data, socket).await?;
             }
             Strategies::OOB2 => {
                 let send_data: Vec<Vec<u8>> =
                     DisorderedOOB::<Oob2>::get_split_packet(&current_data, strategy, &sni_data);
 
-                Oob2::execute_strategy(send_data, current_data, socket);
+                Oob2::execute_strategy(send_data, current_data, socket).await?;
             }
             Strategies::FRAGTLS => {
                 FragTls::execute_strategy(current_data, strategy, sni_data);
@@ -202,6 +204,8 @@ fn execute_l4_bypasses<'a>(
     if config.fake_packet_options.fake_packet_random {
         utils::send_drop(&socket, make_random_vec(32 as usize, 0xDEAD));
     }
+
+    Ok(())
 }
 
 fn execute_l5_bypasses(data: &[u8]) -> Vec<u8> {
@@ -236,24 +240,28 @@ fn execute_l7_bypasses(config: &AuxConfig) {
     }
 }
 
-fn client_hook(socket: &TcpStream, data: &[u8]) -> Vec<u8> {
+pub async fn client_hook<'a>(
+    socket: &'a mut tokio::net::TcpStream,
+    data: &'a [u8],
+) -> Result<Vec<u8>> {
     let config = core::parse_args();
 
     let sni_data = Sni::parse_sni_index(Vec::from(data));
 
     let mut l5_data = execute_l5_bypasses(data);
 
-    execute_l4_bypasses(&socket, &config, &mut l5_data, &sni_data);
+    execute_l4_bypasses(socket, &config, &mut l5_data, &sni_data).await?;
 
     execute_l7_bypasses(&config);
 
-    l5_data
+    Ok(l5_data)
 }
 
 #[macro_use]
 extern crate log;
 
-fn main() -> std::io::Result<()> {
+#[tokio::main]
+async fn main() -> Result<()> {
     unsafe {
         std::env::set_var("RUST_LOG", "trace");
     }
@@ -293,7 +301,11 @@ fn main() -> std::io::Result<()> {
     }
 
     for stream in listener.incoming() {
-        socks::socks5_proxy(&mut (stream?), client_hook);
+        let client = stream?;
+
+        trace!("New client connection");
+
+        socks::socks5_proxy(tokio::net::TcpStream::from_std(client)?).await?;
     }
 
     Ok(())

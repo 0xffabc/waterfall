@@ -4,6 +4,7 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
+anyhow = "1.0.101"
 clap = { version = "4.5.59", features = ["derive"] }
 curl = "0.4.47"
 document-features = "0.2.12"
@@ -16,6 +17,7 @@ quick-xml = { version = "0.39.1", features = ["serialize"] }
 serde = { version = "1.0.228", features = ["derive"] }
 socket2 = "0.5.9"
 socket2-ext = "0.1.1"
+tokio = { version = "1.49.0", features = ["full"] }
 winapi = { version = "0.3", features = ["winsock2", "ws2def", "ws2ipdef", "ws2tcpip"] }
 
 [profile.release]

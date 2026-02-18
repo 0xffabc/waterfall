@@ -1,3 +1,5 @@
+use anyhow::Result;
+
 use crate::core::strategy::Strategy;
 use crate::desync::strategy_core::{SplitPacket, StrategyExecutor};
 use std::marker::PhantomData;
@@ -36,11 +38,11 @@ pub struct Oob;
 pub struct OobStream;
 
 impl StrategyExecutor for Oob {
-    fn execute_strategy(
+    async fn execute_strategy(
         send_data: Vec<Vec<u8>>,
         current_data: &mut Vec<u8>,
-        socket: &'_ std::net::TcpStream,
-    ) {
+        socket: &mut tokio::net::TcpStream,
+    ) -> Result<()> {
         if send_data.len() > 1 {
             let mut ax_part: Vec<u8> = send_data[0].clone();
 
@@ -55,17 +57,19 @@ impl StrategyExecutor for Oob {
 
             *current_data = send_data[1].clone();
         }
+
+        Ok(())
     }
 }
 
-use std::io::Write;
+use tokio::io::AsyncWriteExt;
 
 impl StrategyExecutor for OobStream {
-    fn execute_strategy(
+    async fn execute_strategy(
         send_data: Vec<Vec<u8>>,
         current_data: &mut Vec<u8>,
-        mut socket: &'_ std::net::TcpStream,
-    ) {
+        socket: &mut tokio::net::TcpStream,
+    ) -> Result<()> {
         if send_data.len() > 1 {
             let ax_part: Vec<u8> = send_data[0].clone();
 
@@ -82,5 +86,7 @@ impl StrategyExecutor for OobStream {
 
             *current_data = send_data[1].clone();
         }
+
+        Ok(())
     }
 }

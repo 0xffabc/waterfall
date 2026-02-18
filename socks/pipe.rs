@@ -1,89 +1,86 @@
-use std::cell::UnsafeCell;
-use std::io::{Read, Write};
-use std::net::TcpStream;
-use std::sync::Arc;
-use std::thread;
+use tokio::net::TcpStream;
 
-macro_rules! into_split_half {
-    ($stream:expr) => {{
-        let arc = Arc::new(UnsafeCell::new($stream));
+use tokio::io::AsyncWriteExt;
 
-        (Arc::clone(&arc), arc)
-    }};
-}
+use anyhow::Result;
 
-macro_rules! pipe_fromto {
-    ($from:expr, $to:expr, $hook:expr) => {
-        thread::spawn(move || {
-            let mut buffer = [0; 65535];
+use crate::client_hook;
 
-            let (arc_from_read, _) = into_split_half!($from);
-            let (_, arc_to_write) = into_split_half!($to);
+pub async fn pipe_sockets(socket: TcpStream, stream: TcpStream) -> Result<()> {
+    let mut socket_open = true;
+    let mut stream_open = true;
 
-            let arc_from_read = &mut *arc_from_read.get();
-            let arc_to_write = &mut *arc_to_write.get();
+    let socket: std::net::TcpStream = socket.into_std()?;
+    let stream: std::net::TcpStream = stream.into_std()?;
 
-            let socket = arc_to_write.try_clone().unwrap();
+    socket.set_nodelay(true)?;
+    stream.set_nodelay(true)?;
 
-            loop {
-                match arc_from_read.read(&mut buffer) {
-                    Ok(n) => {
-                        if n == 0 {
-                            break;
-                        }
+    socket.set_nonblocking(true)?;
+    stream.set_nonblocking(true)?;
 
-                        let processed = ($hook)(&socket, &buffer[..n]);
+    let mut socket = TcpStream::from_std(socket)?;
+    let mut stream = TcpStream::from_std(stream)?;
 
-                        if let Err(_) = arc_to_write.write_all(&processed) {
-                            break;
-                        }
-                    }
-                    Err(_) => break,
-                }
-            }
-        });
-    };
-    ($from:expr, $to:expr) => {
-        thread::spawn(move || {
-            let mut buffer = [0; 65535];
+    let mut buffer1: Vec<u8> = vec![0u8; 1024];
+    let mut buffer2: Vec<u8> = vec![0u8; 1024];
 
-            let (arc_from_read, _) = into_split_half!($from);
-            let (_, arc_to_write) = into_split_half!($to);
+    loop {
+        if !socket_open || !stream_open {
+            break;
+        }
 
-            let arc_from_read = &mut *arc_from_read.get();
-            let arc_to_write = &mut *arc_to_write.get();
+        tokio::select! {
+            readable = socket.readable(), if socket_open => {
+                readable?;
 
-            loop {
-                match arc_from_read.read(&mut buffer) {
-                    Ok(n) => {
-                        if n == 0 {
-                            break;
-                        }
+                match socket.try_read(&mut buffer1) {
+                    Ok(0) => {
+                        socket_open = false;
 
-                        if let Err(_) = arc_to_write.write_all(&buffer[..n]) {
-                            break;
+                        if stream_open {
+                            stream.shutdown().await?;
                         }
                     }
-                    Err(_) => break,
+
+                    Ok(n) => {
+                        let data = &buffer1[..n];
+
+                        let transformed = client_hook(&mut socket, data).await?;
+
+                        stream.write_all(&transformed).await?;
+                    }
+
+                    Err(e) if e.kind() == std::io::ErrorKind::WouldBlock => { }
+
+                    Err(e) => return Err(e.into())
                 }
             }
-        });
-    };
-}
+            readable1 = stream.readable(), if stream_open => {
+                readable1?;
 
-pub fn pipe_sockets(
-    socket: TcpStream,
-    stream: TcpStream,
-    hook: impl Fn(&TcpStream, &[u8]) -> Vec<u8> + std::marker::Sync + std::marker::Send + 'static,
-) {
-    socket.set_nodelay(true).unwrap();
-    stream.set_nodelay(true).unwrap();
+                match stream.try_read(&mut buffer2) {
+                    Ok(0) => {
+                        stream_open = false;
 
-    let socket1 = socket.try_clone().unwrap();
-    let stream1 = stream.try_clone().unwrap();
+                        if socket_open {
+                            socket.shutdown().await?;
+                        }
+                    }
 
-    unsafe {
-        pipe_fromto!(socket1, stream1, hook);
-        pipe_fromto!(stream, socket);
+                    Ok(n) => {
+                        let data = &buffer2[..n];
+
+                        socket.write_all(data).await?;
+                    }
+
+                    Err(e) if e.kind() == std::io::ErrorKind::WouldBlock => { }
+
+                    Err(e) => return Err(e.into())
+                }
+            }
+        }
     }
+
+    Ok(())
 }

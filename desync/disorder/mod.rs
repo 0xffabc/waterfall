@@ -1,5 +1,7 @@
 use std::marker::PhantomData;
 
+use anyhow::Result;
+
 use crate::{
     core::strategy::Strategy,
     desync::strategy_core::{SplitPacket, StrategyExecutor},
@@ -39,33 +41,37 @@ impl<T> SplitPacket for DisorderD<T> {
 }
 
 impl StrategyExecutor for Disorder {
-    fn execute_strategy(
+    async fn execute_strategy(
         send_data: Vec<Vec<u8>>,
         current_data: &mut Vec<u8>,
-        socket: &'_ std::net::TcpStream,
-    ) {
+        socket: &mut tokio::net::TcpStream,
+    ) -> Result<()> {
         if send_data.len() > 1 {
-            let _ = crate::utils::send_duplicate(&socket, send_data[0].clone());
+            let _ = crate::utils::send_duplicate(socket, send_data[0].clone());
 
             *current_data = send_data[1].clone();
         }
+
+        Ok(())
     }
 }
 
+use tokio::io::AsyncWriteExt;
+
 impl StrategyExecutor for Disorder2 {
-    fn execute_strategy(
+    async fn execute_strategy(
         send_data: Vec<Vec<u8>>,
         current_data: &mut Vec<u8>,
-        mut socket: &'_ std::net::TcpStream,
-    ) {
-        use std::io::Write;
-
+        socket: &mut tokio::net::TcpStream,
+    ) -> Result<()> {
         if send_data.len() > 1 {
             let _ = socket.write_all(&send_data[0]);
 
-            let _ = crate::utils::send_duplicate(&socket, send_data[1].clone());
+            let _ = crate::utils::send_duplicate(socket, send_data[1].clone());
 
             *current_data = vec![];
         }
+
+        Ok(())
     }
 }

@@ -1,13 +1,12 @@
+use anyhow::{anyhow, Result};
 use glob::Pattern;
 use socket2::{Domain, Protocol, Socket, Type};
 use std::io::Write;
+use std::net::SocketAddr;
 use std::net::ToSocketAddrs;
 use std::thread;
 use std::time::Duration;
-use std::{
-    io,
-    net::{SocketAddr, TcpStream},
-};
+use tokio::net::TcpStream;
 
 use crate::core::aux_config::{RouterRuleScope, RouterRuleType, SocketOptions};
 use crate::core::parse_args;
@@ -28,7 +27,7 @@ impl SocketOps {
     }
 
     pub fn new_proxied(addr: SocketAddr, proxy0: String) -> TcpStream {
-        let mut socket = TcpStream::connect(
+        let mut socket = std::net::TcpStream::connect(
             proxy0
                 .to_socket_addrs()
                 .expect("Wrong proxy IP")
@@ -67,15 +66,17 @@ impl SocketOps {
 
         let _ = socket.read(&mut temp_buf);
 
-        socket
+        TcpStream::from_std(socket).expect("This shouldn't have happened")
     }
 
-    pub fn connect_socket(addr: SocketAddr) -> io::Result<TcpStream> {
+    pub fn connect_socket(addr: SocketAddr) -> Result<TcpStream> {
         let domain_type = if addr.is_ipv4() {
             Domain::IPV4
         } else {
             Domain::IPV6
         };
+
+        trace!("Connecting to IPADDR {addr:?}");
 
         let config = parse_args();
 
@@ -96,10 +97,7 @@ impl SocketOps {
                     match action_type {
                         "socks5" => return Ok(SocketOps::new_proxied(addr, exec.to_string())),
                         "block" => {
-                            return Err(io::Error::new(
-                                io::ErrorKind::ConnectionAborted,
-                                "Connection aborted by a router rule",
-                            ));
+                            return Err(anyhow!("Connection aborted by a router rule"));
                         }
                         _ => continue,
                     }
@@ -137,6 +135,8 @@ impl SocketOps {
 
         socket.connect(&addr.into())?;
 
-        Ok(socket.into())
+        let tcp_stream: std::net::TcpStream = socket.into();
+
+        Ok(TcpStream::from_std(tcp_stream).expect("This shouldn't have happened"))
     }
 }

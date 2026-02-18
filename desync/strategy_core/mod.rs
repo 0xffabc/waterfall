@@ -1,4 +1,5 @@
-use std::net::TcpStream;
+use anyhow::Result;
+use tokio::net::TcpStream;
 
 use crate::core::strategy::Strategy;
 
@@ -11,5 +12,9 @@ pub trait SplitPacket {
 }
 
 pub trait StrategyExecutor {
-    fn execute_strategy(send_data: Vec<Vec<u8>>, current_data: &mut Vec<u8>, socket: &'_ TcpStream);
+    async fn execute_strategy(
+        send_data: Vec<Vec<u8>>,
+        current_data: &mut Vec<u8>,
+        socket: &mut TcpStream,
+    ) -> Result<()>;
 }

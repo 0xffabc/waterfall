@@ -6,9 +6,10 @@ pub mod sni;
 
 pub mod utils {
     use crate::core;
+    use anyhow::Result;
     use std::io;
-    use std::io::Write;
-    use std::net::TcpStream;
+    use tokio::io::AsyncWriteExt;
+    use tokio::net::TcpStream;
 
     #[cfg(unix)]
     pub fn set_ttl_raw(stream: &TcpStream, ttl: u32) -> io::Result<()> {
@@ -68,12 +69,12 @@ pub mod utils {
         Ok(())
     }
 
-    pub fn send_duplicate(mut socket: &TcpStream, packet: Vec<u8>) -> Result<(), std::io::Error> {
+    pub async fn send_duplicate(socket: &mut TcpStream, packet: Vec<u8>) -> Result<()> {
         let conf = core::parse_args();
 
-        let _ = set_ttl_raw(&socket, 1);
-        let _ = socket.write_all(&packet.as_slice())?;
-        let _ = set_ttl_raw(&socket, conf.desync_options.default_ttl.into());
+        set_ttl_raw(&socket, 1)?;
+        socket.write_all(&packet.as_slice()).await?;
+        set_ttl_raw(&socket, conf.desync_options.default_ttl.into())?;
 
         Ok(())
     }

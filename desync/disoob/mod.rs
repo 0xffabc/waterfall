@@ -1,5 +1,6 @@
+use anyhow::Result;
 use std::marker::PhantomData;
-use std::net::TcpStream;
+use tokio::net::TcpStream;
 
 use crate::core::strategy::Strategy;
 use crate::desync::strategy_core::*;
@@ -39,11 +40,11 @@ impl<T> SplitPacket for DisorderedOOB<T> {
 }
 
 impl StrategyExecutor for Disoob {
-    fn execute_strategy(
+    async fn execute_strategy(
         send_data: Vec<Vec<u8>>,
         current_data: &mut Vec<u8>,
-        socket: &'_ TcpStream,
-    ) {
+        socket: &mut TcpStream,
+    ) -> Result<()> {
         if send_data.len() > 1 {
             let mut ax_part: Vec<u8> = send_data[0].clone();
 
@@ -63,15 +64,17 @@ impl StrategyExecutor for Disoob {
 
             *current_data = send_data[1].clone();
         }
+
+        Ok(())
     }
 }
 
 impl StrategyExecutor for Oob2 {
-    fn execute_strategy(
+    async fn execute_strategy(
         send_data: Vec<Vec<u8>>,
         current_data: &mut Vec<u8>,
-        socket: &'_ TcpStream,
-    ) {
+        socket: &mut TcpStream,
+    ) -> Result<()> {
         if send_data.len() > 1 {
             let mut ax_part: Vec<u8> = send_data[0].clone();
 
@@ -89,9 +92,11 @@ impl StrategyExecutor for Oob2 {
                 crate::core::parse_args().desync_options.default_ttl.into(),
             );
 
-            let _ = utils::send_duplicate(&socket, send_data[1].clone());
+            let _ = utils::send_duplicate(socket, send_data[1].clone());
 
             *current_data = vec![];
         }
+
+        Ok(())
     }
 }

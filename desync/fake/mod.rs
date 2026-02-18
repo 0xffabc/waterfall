@@ -1,5 +1,7 @@
 use std::marker::PhantomData;
 
+use anyhow::Result;
+
 use crate::{
     core::strategy::Strategy,
     desync::{
@@ -100,13 +102,13 @@ pub struct FakeMD;
 pub struct Fake;
 
 impl StrategyExecutor for Fake {
-    fn execute_strategy(
+    async fn execute_strategy(
         send_data: Vec<Vec<u8>>,
         current_data: &mut Vec<u8>,
-        socket: &'_ std::net::TcpStream,
-    ) {
+        socket: &mut tokio::net::TcpStream,
+    ) -> Result<()> {
         if send_data.len() > 1 {
-            let _ = utils::send_duplicate(&socket, send_data[0].clone());
+            let _ = utils::send_duplicate(socket, send_data[0].clone());
             utils::send_drop(
                 &socket,
                 FakeD::<Fake>::get_fake_packet(
@@ -124,19 +126,21 @@ impl StrategyExecutor for Fake {
 
             *current_data = send_data[1].clone();
         }
+
+        Ok(())
     }
 }
 
-use std::io::Write;
+use tokio::io::AsyncWriteExt;
 
 impl StrategyExecutor for FakeMD {
-    fn execute_strategy(
+    async fn execute_strategy(
         send_data: Vec<Vec<u8>>,
         current_data: &mut Vec<u8>,
-        mut socket: &'_ std::net::TcpStream,
-    ) {
+        socket: &mut tokio::net::TcpStream,
+    ) -> Result<()> {
         if send_data.len() > 1 {
-            let _ = socket.write_all(&send_data[0]);
+            socket.write_all(&send_data[0]).await?;
 
             utils::send_drop(
                 &socket,
@@ -155,15 +159,17 @@ impl StrategyExecutor for FakeMD {
 
             *current_data = send_data[1].clone();
         }
+
+        Ok(())
     }
 }
 
 impl StrategyExecutor for FakeInsert {
-    fn execute_strategy(
+    async fn execute_strategy(
         send_data: Vec<Vec<u8>>,
         current_data: &mut Vec<u8>,
-        mut socket: &'_ std::net::TcpStream,
-    ) {
+        socket: &mut tokio::net::TcpStream,
+    ) -> Result<()> {
         if send_data.len() > 1 {
             let _ = socket.write_all(&send_data[0]);
 
@@ -174,15 +180,17 @@ impl StrategyExecutor for FakeInsert {
 
             *current_data = send_data[1].clone();
         }
+
+        Ok(())
     }
 }
 
 impl StrategyExecutor for Fake2Disorder {
-    fn execute_strategy(
+    async fn execute_strategy(
         send_data: Vec<Vec<u8>>,
         current_data: &mut Vec<u8>,
-        mut socket: &'_ std::net::TcpStream,
-    ) {
+        socket: &mut tokio::net::TcpStream,
+    ) -> Result<()> {
         if send_data.len() > 1 {
             let _ = socket.write_all(&send_data[0]);
 
@@ -191,19 +199,21 @@ impl StrategyExecutor for Fake2Disorder {
                 FakeD::<Fake2Disorder>::get_fake_packet(send_data[1].clone()),
             );
 
-            let _ = utils::send_duplicate(&socket, send_data[1].clone());
+            let _ = utils::send_duplicate(socket, send_data[1].clone());
 
             *current_data = vec![];
         }
+
+        Ok(())
     }
 }
 
 impl StrategyExecutor for FakeSurround {
-    fn execute_strategy(
+    async fn execute_strategy(
         send_data: Vec<Vec<u8>>,
         current_data: &mut Vec<u8>,
-        mut socket: &'_ std::net::TcpStream,
-    ) {
+        socket: &mut tokio::net::TcpStream,
+    ) -> Result<()> {
         if send_data.len() > 1 {
             utils::send_drop(
                 &socket,
@@ -239,17 +249,21 @@ impl StrategyExecutor for FakeSurround {
 
             *current_data = send_data[1].clone();
         }
+
+        Ok(())
     }
 }
 
 impl StrategyExecutor for Meltdown {
-    fn execute_strategy(
+    async fn execute_strategy(
         _send_data: Vec<Vec<u8>>,
         current_data: &mut Vec<u8>,
-        socket: &'_ std::net::TcpStream,
-    ) {
-        let _ = utils::send_duplicate(&socket, current_data.clone());
+        socket: &mut tokio::net::TcpStream,
+    ) -> Result<()> {
+        let _ = utils::send_duplicate(socket, current_data.clone());
 
         *current_data = vec![];
+
+        Ok(())
     }
 }

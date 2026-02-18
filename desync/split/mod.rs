@@ -1,6 +1,5 @@
 use crate::core::strategy::Strategy;
 use crate::desync::strategy_core::{SplitPacket, StrategyExecutor};
-use std::io::Write;
 
 pub struct Split;
 
@@ -30,16 +29,21 @@ impl SplitPacket for Split {
     }
 }
 
+use anyhow::Result;
+use tokio::io::AsyncWriteExt;
+
 impl StrategyExecutor for Split {
-    fn execute_strategy(
+    async fn execute_strategy(
         send_data: Vec<Vec<u8>>,
         current_data: &mut Vec<u8>,
-        mut socket: &'_ std::net::TcpStream,
-    ) {
+        socket: &mut tokio::net::TcpStream,
+    ) -> Result<()> {
         if send_data.len() > 1 {
-            let _ = socket.write_all(&send_data[0]);
+            socket.write_all(&send_data[0]).await?;
 
             *current_data = send_data[1].clone();
         }
+
+        Ok(())
     }
 }

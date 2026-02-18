@@ -15,6 +15,20 @@ Build information
 
 First run will generate a config.xml file, unless you specified the exact filename with `--config`
 
+Limitations
+-----------
+
+* No schannel support (tokio merges every TLS record from the server to handle backpressuring, and schannel mandates every record to be sent as a separate segment)
+  You should compile curl with OpenSSL instead. Moreover, OpenSSL is a correct ssl implementation.
+  You can also consider rustls (if you're on Rust, obviously)
+  In future, I'll add a configuration flag to disable async socket piping and use the old multi-threaded approach instead.
+* No UDP support (fixable)
+* No IPv6 support (fixable)
+* Inability to inject fabricated TCP packets in the stream (libpcap solves that)
+
+Most of these limitations are eventually fixable and will be patched over time
+However, you can make a PR if you're interested
+
 Essential Info
 --------------
 
@@ -69,7 +83,7 @@ An example rule would block every visible clienthello to gateway.discord.gg
 ```
 <router-options>
   <!-- Prevent discord from connecting to main gateway URL -->
-  
+
   <rules
     scope="SNI"
     type="Forward"
@@ -89,7 +103,7 @@ Forward is not available on SNI, unless it's a `block` type.
 Global strategy whitelist
 -------------------------
 
-Denoted as 
+Denoted as
 
 ```
 <whitelist-sni-list list="domain" value="googlevideo.com" />
@@ -138,7 +152,7 @@ Available types
 * DISOOB - DISORDER + OOB
 * OOB2 - DISORDER2 + OOB
 * FRAGTLS - Splits TLS header in two parts, used to be a powerful counter-attack against GFW. For more info: https://upb-syssec.github.io/blog/2023/record-fragmentation/. A particular case of geneva's `tamper`
-* 
+*
 
 Implementation details
 ----------------------

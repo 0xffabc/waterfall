@@ -6,79 +6,69 @@ use crate::IpParser;
 
 mod pipe;
 
-use std::{
-    io::{Read, Write},
-    net::{SocketAddr, TcpStream},
-};
+use std::net::SocketAddr;
 
-pub fn socks5_proxy(
-    proxy_client: &mut TcpStream,
-    client_hook: impl Fn(&TcpStream, &[u8]) -> Vec<u8> + std::marker::Sync + std::marker::Send + 'static,
-) {
-    proxy_client
-        .try_clone()
-        .and_then(|mut client| {
-            let mut buffer = [0; 64];
+use anyhow::{anyhow, Result};
+use tokio::io::{AsyncReadExt, AsyncWriteExt};
+use tokio::net::TcpStream;
 
-            client.read(&mut buffer)?;
-            client.write_all(&[5, 0])?;
-            client.read(&mut buffer)?;
+pub async fn socks5_proxy(mut client: TcpStream) -> Result<()> {
+    let mut buffer = [0; 64];
 
-            let config = parse_args();
+    client.read(&mut buffer).await?;
+    client.write_all(&[5, 0]).await?;
+    client.read(&mut buffer).await?;
 
-            let router_responce = Router::interject_dns(config, &buffer);
+    let config = parse_args();
 
-            let parsed_data: IpParser = match router_responce {
-                RouterInterjectionStatus::Allow => IpParser::parse(&buffer),
-                RouterInterjectionStatus::AutoResolved(parsed) => parsed,
-            };
+    let router_responce = Router::interject_dns(config, &buffer);
 
-            let mut packet = vec![5, 0, 0, parsed_data.dest_addr_type];
+    let parsed_data: IpParser = match router_responce {
+        RouterInterjectionStatus::Allow => IpParser::parse(&buffer),
+        RouterInterjectionStatus::AutoResolved(parsed) => parsed,
+    };
 
-            packet.push(parsed_data.host_unprocessed.len() as u8);
+    let mut packet = vec![5, 0, 0, parsed_data.dest_addr_type];
 
-            packet.extend_from_slice(&parsed_data.host_unprocessed);
-            packet.extend_from_slice(&parsed_data.port.to_be_bytes());
+    packet.push(parsed_data.host_unprocessed.len() as u8);
 
-            if parsed_data.is_udp {
-                todo!();
-            }
+    packet.extend_from_slice(&parsed_data.host_unprocessed);
+    packet.extend_from_slice(&parsed_data.port.to_be_bytes());
 
-            match parsed_data.host_raw.len() {
-                4 => {
-                    let ip_bytes: [u8; 4] =
-                        unsafe { *(parsed_data.host_raw.as_ptr() as *const [u8; 4]) };
+    if parsed_data.is_udp {
+        todo!();
+    }
 
-                    Some(SocketAddr::new(ip_bytes.into(), parsed_data.port))
-                }
-                16 => {
-                    let ip_bytes: [u8; 16] =
-                        unsafe { *(parsed_data.host_raw.as_ptr() as *const [u8; 16]) };
+    let sock_addr = match parsed_data.host_raw.len() {
+        4 => {
+            let ip_bytes: [u8; 4] = unsafe { *(parsed_data.host_raw.as_ptr() as *const [u8; 4]) };
 
-                    Some(SocketAddr::new(ip_bytes.into(), parsed_data.port))
-                }
-                _ => None,
-            }
-            .and_then(|sock_addr| {
-                let server_socket = SocketOps::connect_socket(sock_addr);
+            SocketAddr::new(ip_bytes.into(), parsed_data.port)
+        }
+        16 => {
+            let ip_bytes: [u8; 16] = unsafe { *(parsed_data.host_raw.as_ptr() as *const [u8; 16]) };
 
-                match server_socket {
-                    Ok(socket) => {
-                        client.write_all(&packet).ok()?;
+            SocketAddr::new(ip_bytes.into(), parsed_data.port)
+        }
+        _ => return Err(anyhow!("No IP")),
+    };
 
-                        drop(packet);
+    let server_socket = SocketOps::connect_socket(sock_addr);
 
-                        pipe_sockets(client, socket, client_hook);
-                    }
-                    Err(error) => {
-                        error!("Connection aborted: {error}");
-                    }
-                }
+    match server_socket {
+        Ok(socket) => {
+            client.write_all(&packet).await?;
 
-                Some(())
-            })
-            .unwrap_or(());
-            Ok(())
-        })
-        .unwrap_or(());
+            drop(packet);
+
+            tokio::spawn(async move {
+                pipe_sockets(client, socket).await.unwrap();
+            });
+        }
+        Err(error) => {
+            error!("Connection aborted: {error}");
+        }
+    }
+
+    Ok(())
 }
