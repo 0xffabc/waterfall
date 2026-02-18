@@ -25,7 +25,6 @@ use crate::desync::utils::ip::IpParser;
 use crate::desync::utils::filter::Whitelist;
 
 use std::net::TcpListener;
-use std::net::TcpStream;
 
 use std::thread;
 use std::time;
@@ -303,9 +302,9 @@ async fn main() -> Result<()> {
     for stream in listener.incoming() {
         let client = stream?;
 
-        trace!("New client connection");
-
-        socks::socks5_proxy(tokio::net::TcpStream::from_std(client)?).await?;
+        tokio::spawn(async move {
+            let _ = socks::socks5_proxy(tokio::net::TcpStream::from_std(client).unwrap()).await;
+        });
     }
 
     Ok(())

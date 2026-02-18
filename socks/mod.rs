@@ -62,7 +62,7 @@ pub async fn socks5_proxy(mut client: TcpStream) -> Result<()> {
             drop(packet);
 
             tokio::spawn(async move {
-                pipe_sockets(client, socket).await.unwrap();
+                let _ = pipe_sockets(client, socket).await;
             });
         }
         Err(error) => {
