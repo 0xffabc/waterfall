@@ -1,4 +1,7 @@
+use glob::Pattern;
 use socket2::{Domain, Protocol, Socket, Type};
+use std::io::Write;
+use std::net::ToSocketAddrs;
 use std::thread;
 use std::time::Duration;
 use std::{
@@ -6,9 +9,11 @@ use std::{
     net::{SocketAddr, TcpStream},
 };
 
-use crate::core::aux_config::SocketOptions;
+use crate::core::aux_config::{RouterRuleScope, RouterRuleType, SocketOptions};
 use crate::core::parse_args;
+use crate::core::router::Router;
 use socket2_ext::{AddressBinding, BindDeviceOption};
+use std::io::Read;
 
 pub struct SocketOps();
 
@@ -22,12 +27,87 @@ impl SocketOps {
         });
     }
 
+    pub fn new_proxied(addr: SocketAddr, proxy0: String) -> TcpStream {
+        let mut socket = TcpStream::connect(
+            proxy0
+                .to_socket_addrs()
+                .expect("Wrong proxy IP")
+                .next()
+                .expect("Bad IP resolver"),
+        )
+        .expect("Socks5 proxy is unreachable");
+
+        let mut temp_buf = [0u8; 64];
+
+        let _ = socket.write_all(&vec![0x05, 1, 0]);
+        let _ = socket.read(&mut temp_buf);
+
+        let mut connreq = vec![0x05, 0x01, 0x00];
+
+        if addr.is_ipv4() {
+            connreq.push(0x01);
+        } else if addr.is_ipv6() {
+            connreq.push(0x04);
+        } else {
+            connreq.push(0x03);
+        }
+
+        match addr {
+            SocketAddr::V4(v4) => {
+                connreq.push(0x04);
+                connreq.extend_from_slice(&v4.ip().octets());
+                connreq.extend_from_slice(&v4.port().to_be_bytes());
+            }
+            SocketAddr::V6(v6) => {
+                connreq.push(0x06);
+                connreq.extend_from_slice(&v6.ip().octets());
+                connreq.extend_from_slice(&v6.port().to_be_bytes());
+            }
+        }
+
+        let _ = socket.read(&mut temp_buf);
+
+        socket
+    }
+
     pub fn connect_socket(addr: SocketAddr) -> io::Result<TcpStream> {
         let domain_type = if addr.is_ipv4() {
             Domain::IPV4
         } else {
             Domain::IPV6
         };
+
+        let config = parse_args();
+
+        let rules = Router::query_router_rules(&config, &RouterRuleType::Forward);
+
+        for rule in rules {
+            if rule.scope != RouterRuleScope::IP {
+                continue;
+            }
+
+            let pattern = Pattern::new(&rule.rule_match)
+                .expect("Invalid rule, thank god I'm going to panic the whole program");
+
+            if pattern.matches(&addr.to_string()) {
+                let mut split = rule.exec.splitn(2, ' ');
+
+                if let (Some(action_type), Some(exec)) = (split.next(), split.next()) {
+                    match action_type {
+                        "socks5" => return Ok(SocketOps::new_proxied(addr, exec.to_string())),
+                        "block" => {
+                            return Err(io::Error::new(
+                                io::ErrorKind::ConnectionAborted,
+                                "Connection aborted by a router rule",
+                            ));
+                        }
+                        _ => continue,
+                    }
+                }
+            }
+
+            break;
+        }
 
         let socket = Socket::new(domain_type, Type::STREAM, Some(Protocol::TCP))?;
 

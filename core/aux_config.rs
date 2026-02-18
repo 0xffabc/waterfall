@@ -121,6 +121,37 @@ pub struct DesyncOptions {
 }
 
 #[derive(Debug, Clone, Deserialize, PartialEq, Serialize)]
+pub enum RouterRuleScope {
+    DnsQuery,
+    SNI,
+    IP,
+}
+
+#[derive(Debug, Clone, Deserialize, PartialEq, Serialize)]
+pub enum RouterRuleType {
+    Forward,
+    FakeDNS,
+}
+
+#[derive(Debug, Clone, Deserialize, PartialEq, Serialize)]
+pub struct RouterRule {
+    #[serde(rename = "@scope")]
+    pub scope: RouterRuleScope,
+    #[serde(rename = "@type")]
+    pub rule_type: RouterRuleType,
+    #[serde(rename = "@match")]
+    pub rule_match: String,
+    #[serde(rename = "@exec")]
+    pub exec: String,
+}
+
+#[derive(Debug, Clone, Deserialize, PartialEq, Serialize)]
+#[serde(rename_all = "kebab-case", deny_unknown_fields)]
+pub struct RouterOptions {
+    pub rules: Vec<RouterRule>,
+}
+
+#[derive(Debug, Clone, Deserialize, PartialEq, Serialize)]
 #[serde(rename_all = "kebab-case", deny_unknown_fields)]
 pub struct AuxConfig {
     pub bind_options: BindOptions,
@@ -129,6 +160,7 @@ pub struct AuxConfig {
     pub http_options: HttpOptions,
     pub desync_options: DesyncOptions,
     pub dns_options: DnsOptions,
+    pub router_options: RouterOptions,
 
     #[serde(default = "default_whitelist_sni")]
     pub whitelist_sni: bool,
@@ -183,6 +215,14 @@ impl Default for AuxConfig {
                 so_l7_packet_jitter_max: default_l7_packet_jitter_max(),
                 so_disable_sack: false,
                 so_oob_streamhell_data: default_oob_streamhell_data(),
+            },
+            router_options: RouterOptions {
+                rules: vec![RouterRule {
+                    scope: RouterRuleScope::SNI,
+                    rule_type: RouterRuleType::Forward,
+                    rule_match: "*.discord.com".to_string(),
+                    exec: "socks 127.0.0.1:9050".to_string(),
+                }],
             },
             http_options: HttpOptions {
                 http_host_cmix: false,

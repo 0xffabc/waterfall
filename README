@@ -45,6 +45,15 @@ examples/ are outdated, use /config.xml instead
 Current limitations: lack of BPF filter config, lack of mod utils/random's seed customization
 You might want to use `bpf_asm` to wrie BPF filters after they get considered by the config
 
+Implementation details
+----------------------
+
+* Router uses DNS-resolved IP and the SOCKS5 request domain for RouterRuleType::SNI as for now
+* IPv6-enabled interfaces aren't handled by the socket binder, if you use one, fall back to `default`
+* SNI, IP router scopes are handled before the socket creation, to allow FORWARD router rule
+* Fakedns action type makes sense only with the DnsQuery router scope
+* Router will use the first rule available for current context and ignore every other one
+
 Planned features
 ----------------
 

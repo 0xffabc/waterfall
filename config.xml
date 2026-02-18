@@ -2,7 +2,7 @@
     <bind-options
         host="127.0.0.1"
         port="1080"
-        iface="Ethernet"
+        iface="default"
         iface-mtu="1500"
         iface-ipv4-ip="0.0.0.0"
         iface-ipv6-ip="::"
@@ -10,12 +10,12 @@
     <fake-packet-options
         ttl="64"
         sni="yandex.ru"
-        only-oob="true"
+        only-oob="false"
         protocol-http="false"
         protocol-http-host="yandex.ru"
         send-reversed="false"
         send-random-garbage="false"
-        send-clienthello="true"
+        send-clienthello="false"
         clienthello-sni="yandex.ru"
     >
         <send-twice>false</send-twice>
@@ -41,6 +41,15 @@
         packet-hops-max="3"
     />
     <dns-options integrated_doh_enabled="true" />
+    <router-options>
+        <!-- Prevent discord from connecting to main gateway URL -->
+        <rules
+            scope="SNI"
+            type="Forward"
+            match="*.discord.gg"
+            exec="block 127.0.0.1:9050"
+        />
+    </router-options>
     <whitelist-sni>true</whitelist-sni>
     <whitelist-sni-list list="domain" value="discord.com" />
     <whitelist-sni-list list="domain" value="youtube.com" />

@@ -3,6 +3,8 @@ mod desync;
 mod socks;
 mod tamper;
 
+use winapi::vc::excpt::EXCEPTION_CONTINUE_EXECUTION;
+
 use crate::core::aux_config::AuxConfig;
 use crate::core::strategy::Strategies;
 use crate::desync::disoob::{Disoob, DisorderedOOB, Oob2};
@@ -62,7 +64,7 @@ fn execute_l4_bypasses<'a>(
             continue;
         }
 
-        if !Whitelist::check_whitelist(
+        let filter_result = Whitelist::check_whitelist(
             &Some(
                 (strategy.filter_sni.items)
                     .iter()
@@ -71,7 +73,15 @@ fn execute_l4_bypasses<'a>(
             ),
             sni_data,
             current_data.as_slice(),
-        ) {
+        );
+
+        if let Ok(result) = filter_result {
+            if !result {
+                continue;
+            }
+        } else {
+            warn!("Website blocked per filter rules");
+
             continue;
         }
 

@@ -1,5 +1,6 @@
-use crate::core;
+use crate::core::router::{Router, RouterInterjectionStatus};
 use crate::core::socket::SocketOps;
+use crate::core::{self, parse_args};
 use crate::IpParser;
 
 use std::io;
@@ -51,7 +52,14 @@ pub fn socks5_proxy(
             client.write_all(&[5, 0])?;
             client.read(&mut buffer)?;
 
-            let parsed_data: IpParser = IpParser::parse(&buffer);
+            let config = parse_args();
+
+            let router_responce = Router::interject_dns(config, &buffer);
+
+            let parsed_data: IpParser = match router_responce {
+                RouterInterjectionStatus::Allow => IpParser::parse(&buffer),
+                RouterInterjectionStatus::AutoResolved(parsed) => parsed,
+            };
 
             let mut packet = vec![5, 0, 0, parsed_data.dest_addr_type];
 

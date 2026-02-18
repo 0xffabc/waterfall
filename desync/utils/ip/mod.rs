@@ -3,9 +3,9 @@ use std::net::IpAddr;
 use crate::desync::utils::doh::DOHResolver;
 
 #[derive(Debug, Clone)]
-pub struct IpParser<'a> {
+pub struct IpParser {
     pub host_raw: Vec<u8>,
-    pub host_unprocessed: &'a [u8],
+    pub host_unprocessed: Vec<u8>,
     pub port: u16,
     pub dest_addr_type: u8,
     pub is_udp: bool,
@@ -13,7 +13,7 @@ pub struct IpParser<'a> {
 
 pub struct IpUtils();
 
-impl<'a> IpParser<'a> {
+impl IpParser {
     #[allow(mismatched_lifetime_syntaxes)]
     pub fn parse<'b>(buffer: &'b [u8]) -> IpParser {
         let dest_addr_type = buffer[3];
@@ -25,7 +25,7 @@ impl<'a> IpParser<'a> {
                     return IpParser {
                         dest_addr_type,
                         host_raw: vec![0, 0, 0, 0],
-                        host_unprocessed: &[0, 0, 0, 0],
+                        host_unprocessed: vec![0, 0, 0, 0],
                         port: 0,
                         is_udp,
                     };
@@ -33,7 +33,7 @@ impl<'a> IpParser<'a> {
                 IpParser {
                     dest_addr_type,
                     host_raw: buffer[4..8].to_vec(),
-                    host_unprocessed: &buffer[4..8],
+                    host_unprocessed: buffer[4..8].to_vec(),
                     port: u16::from_be_bytes([buffer[8], buffer[9]]),
                     is_udp,
                 }
@@ -45,7 +45,7 @@ impl<'a> IpParser<'a> {
                     return IpParser {
                         dest_addr_type,
                         host_raw: vec![0, 0, 0, 0],
-                        host_unprocessed: &[0, 0, 0, 0],
+                        host_unprocessed: vec![0, 0, 0, 0],
                         port: 0,
                         is_udp,
                     };
@@ -65,7 +65,7 @@ impl<'a> IpParser<'a> {
                         return IpParser {
                             dest_addr_type,
                             host_raw: ip_buffer,
-                            host_unprocessed: &domain,
+                            host_unprocessed: domain.to_vec(),
                             port,
                             is_udp,
                         };
@@ -81,7 +81,7 @@ impl<'a> IpParser<'a> {
                             return IpParser {
                                 dest_addr_type,
                                 host_raw: ip_buffer,
-                                host_unprocessed: &domain,
+                                host_unprocessed: domain.to_vec(),
                                 port,
                                 is_udp,
                             };
@@ -92,7 +92,7 @@ impl<'a> IpParser<'a> {
                 IpParser {
                     dest_addr_type,
                     host_raw: vec![0, 0, 0, 0],
-                    host_unprocessed: &domain,
+                    host_unprocessed: domain.to_vec(),
                     port,
                     is_udp,
                 }
@@ -102,7 +102,7 @@ impl<'a> IpParser<'a> {
                     return IpParser {
                         dest_addr_type,
                         host_raw: vec![0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-                        host_unprocessed: &[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+                        host_unprocessed: vec![0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
                         port: 0,
                         is_udp,
                     };
@@ -110,7 +110,7 @@ impl<'a> IpParser<'a> {
                 IpParser {
                     dest_addr_type,
                     host_raw: buffer[4..20].to_vec(),
-                    host_unprocessed: &buffer[4..20],
+                    host_unprocessed: buffer[4..20].to_vec(),
                     port: u16::from_be_bytes([buffer[20], buffer[21]]),
                     is_udp,
                 }
@@ -118,7 +118,7 @@ impl<'a> IpParser<'a> {
             _ => IpParser {
                 dest_addr_type,
                 host_raw: [0, 0, 0, 0].to_vec(),
-                host_unprocessed: &[0, 0, 0, 0],
+                host_unprocessed: vec![0, 0, 0, 0],
                 port: 0,
                 is_udp,
             },
