@@ -10,12 +10,12 @@
     <fake-packet-options
         ttl="64"
         sni="yandex.ru"
-        only-oob="false"
+        only-oob="true"
         protocol-http="false"
         protocol-http-host="yandex.ru"
         send-reversed="false"
         send-random-garbage="false"
-        send-clienthello="false"
+        send-clienthello="true"
         clienthello-sni="yandex.ru"
     >
         <send-twice>false</send-twice>

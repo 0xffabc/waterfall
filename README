@@ -1,0 +1,52 @@
+Waterfall
+=========
+
+Waterfall's a network traffic modification software written in Rust
+
+The traffic is captured via a SOCKS5 proxy and requires a client that handles direct socket connections
+
+Meaning socks2tun/etc. is not supported yet, however the author is working on it
+
+Build information
+-----------------
+
+* build+run: `cargo run`
+* build: `cargo build`
+
+First run will generate a config.xml file, unless you specified the exact filename with `--config`
+
+Essential Info
+--------------
+
+examples/ are outdated, use /config.xml instead
+
+* bind-options: iface-mtu, iface-ipv4-ip and iface-ipv6-ip are reserved for TUN support
+* fake-packet-options: only-oob marks every fake packet as OOB, could be dropped by the DPI
+  - protocol-http simulates an HTTP connection
+  - send-reversed would send the fake first
+  - send-random-garbage generates a random byte stream and sends it (seed=0xDEAD, add configuration option for RNG later)
+  - send-clienthello sends a fake CH with sni=clienthello-sni
+  - <send-twice>{bool}</send-twice>, where {bool} decides whether to duplicate the fake or not
+* socket-options:
+  - desync-cutoff-ms is useful for not processing already hanging connections
+  - disable-sack works ONLY on linux with BPF filters. We'll need functionality to decompose this in a configuration option
+      (something like <BPF code="..." jt="0" jf="8" k="0x00000036" />), therefore disable-sack might get removed
+  - oob-hell-data changes what bytes OobStream sends as OOB between separated packets. OobStream CAN and WILL confuse Wireshark's DPI a lot
+* http-options:
+  - Depends on a sequence of 'http' word in the packet (internal DPI will not modify packets with randomized capsulation or any other tweaks)
+* desync-options:
+  - packet-hops-max specifies how much packets the internal DPI must process. BufReader hook would return Ok(size) afterwards
+  - default-ttl works for disorder packets, currently TSPU checks whether packet-ttl is in range of default-ttl (for disorder),
+    so you might not want to set it to 4. Use traceroute/tracert to find where the closest loss-hop is
+* dns-options: you might not want to have 'integrated_doh_enabled'='true', since it's known to mess with socks2tun (curl chooses the TUN adapter's interface on wintun impl)
+  - use whitelist-sni-list if you don't want to feed internal DPI with every packet possible
+* negative_offset for strategies reverses the effect of offset, offset="3" becomes offset="-3" (pseudoarg)
+
+Current limitations: lack of BPF filter config, lack of mod utils/random's seed customization
+You might want to use `bpf_asm` to wrie BPF filters after they get considered by the config
+
+Planned features
+----------------
+
+- Routing rules (<router> tag, <rule> tag, <action> tag)
+- BPF filter config (<BPFilters>, <BPF />)
