@@ -20,7 +20,6 @@ Limitations
   You should compile curl with OpenSSL instead. Moreover, OpenSSL is a correct ssl implementation.
   You can also consider rustls (if you're on Rust, obviously)
   In future, I'll add a configuration flag to disable async socket piping and use the old multi-threaded approach instead.
-* No UDP support (fixable)
 * No IPv6 support (fixable)
 * Inability to inject fabricated TCP packets in the stream (libpcap solves that)
 * Inability to select a custom/multiple DNS servers. This is critical for a scenario when you have to use a DNS multiplexer. Even now, you might see waterfall-proxy falling back to 0.0.0.0:443 and expecting a transparent proxy here.
@@ -239,6 +238,17 @@ If you're unsure, use wireshark to check which CIDRs you need to exclude in the 
 
 And the next (most important part)! Right now, the nekoray method is unstable. You have to make it
 forward IPv6 and UDP directly, bypassing the waterfall-proxy. In future, this would be fixed.
+
+UDP support
+-----------
+
+Waterfall-proxy uses 3 tasks per each connection
+
+* Shutdown controller
+* UDP piper (includes a relay/flow manager to remove dangling FDs)
+* Garbage collector (works every 60secs)
+
+UDP tasks will be progressively finished as the connection closed/an error happened
 
 Implementation details
 ----------------------
