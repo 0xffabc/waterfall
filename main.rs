@@ -23,6 +23,7 @@ use crate::desync::utils::utils;
 use crate::desync::utils::ip::IpParser;
 
 use crate::desync::utils::filter::Whitelist;
+use crate::tamper::service::{compile_patterns, process_packet};
 
 use std::net::TcpListener;
 
@@ -248,6 +249,7 @@ pub async fn client_hook<'a>(
 
     let mut l5_data = execute_l5_bypasses(data);
 
+    process_packet(&mut l5_data).await?;
     execute_l4_bypasses(socket, &config, &mut l5_data, &sni_data).await?;
     execute_l7_bypasses(&config).await;
 
@@ -274,6 +276,16 @@ async fn main() -> Result<()> {
     info!("Waterfall is starting");
 
     let config: AuxConfig = core::parse_args();
+
+    compile_patterns(
+        config
+            .pattern_options
+            .patterns
+            .iter()
+            .map(|rule| (rule.pattern.clone(), rule.replacement.clone()))
+            .collect(),
+    )
+    .await;
 
     debug!("Working with a config: {config:?}");
 

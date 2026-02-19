@@ -10,7 +10,7 @@
     <fake-packet-options
         ttl="64"
         sni="yandex.ru"
-        only-oob="true"
+        only-oob="false"
         protocol-http="false"
         protocol-http-host="yandex.ru"
         send-reversed="false"
@@ -42,21 +42,21 @@
     />
     <dns-options integrated_doh_enabled="true" />
     <router-options>
-        <!-- Note: put an actual IPv4 here -->
         <rules
-            scope="DnsQuery"
-            type="FakeDNS"
-            match="ntc.party"
-            exec="30.255.77.28"
+            scope="SNI"
+            type="Forward"
+            match="*.discord.com"
+            exec="socks 127.0.0.1:9050"
         />
     </router-options>
+    <pattern-options />
     <whitelist-sni>true</whitelist-sni>
     <whitelist-sni-list list="domain" value="discord.com" />
     <whitelist-sni-list list="domain" value="youtube.com" />
     <whitelist-sni-list list="domain" value="googlevideo.com" />
     <strategies
-        type="SPLIT"
-        offset="5"
+        type="FRAGTLS"
+        offset="3"
         add-sni="true"
         add-host="false"
         negative_offset="false"
@@ -70,7 +70,6 @@
             <WhiteListedSNIWrapper list="domain" value="discord.com" />
             <WhiteListedSNIWrapper list="domain" value="discordapp.com" />
             <WhiteListedSNIWrapper list="domain" value="googlevideo.com" />
-            <WhiteListedSNIWrapper list="domain" value="krunker.io" />
         </filter-sni>
     </strategies>
 </AuxConfig>

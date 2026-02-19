@@ -146,9 +146,25 @@ pub struct RouterRule {
 }
 
 #[derive(Debug, Clone, Deserialize, PartialEq, Serialize)]
+pub struct PatternRule {
+    #[serde(rename = "@pattern")]
+    pub pattern: String,
+    #[serde(rename = "@replacement")]
+    pub replacement: String,
+}
+
+#[derive(Debug, Clone, Deserialize, PartialEq, Serialize)]
 #[serde(rename_all = "kebab-case", deny_unknown_fields)]
 pub struct RouterOptions {
+    #[serde(default = "default_rules")]
     pub rules: Vec<RouterRule>,
+}
+
+#[derive(Debug, Clone, Deserialize, PartialEq, Serialize)]
+#[serde(rename_all = "kebab-case", deny_unknown_fields)]
+pub struct PatternOptions {
+    #[serde(default = "default_patterns")]
+    pub patterns: Vec<PatternRule>,
 }
 
 #[derive(Debug, Clone, Deserialize, PartialEq, Serialize)]
@@ -161,6 +177,7 @@ pub struct AuxConfig {
     pub desync_options: DesyncOptions,
     pub dns_options: DnsOptions,
     pub router_options: RouterOptions,
+    pub pattern_options: PatternOptions,
 
     #[serde(default = "default_whitelist_sni")]
     pub whitelist_sni: bool,
@@ -235,6 +252,12 @@ impl Default for AuxConfig {
                 default_ttl: default_default_ttl(),
                 out_of_band_charid: default_out_of_band_charid(),
                 packet_hop: default_packet_hop(),
+            },
+            pattern_options: PatternOptions {
+                patterns: vec![PatternRule {
+                    pattern: "x796F75747562652E636F6D".to_string(),
+                    replacement: "x626C6F676765722E636F6D".to_string(),
+                }],
             },
             whitelist_sni: default_whitelist_sni(),
             whitelist_sni_list: whitelist_sni_list(),
@@ -370,4 +393,12 @@ fn default_fake_packet_override_data() -> Option<Vec<u8>> {
 
 fn default_integrated_doh_enabled() -> bool {
     true
+}
+
+fn default_patterns() -> Vec<PatternRule> {
+    vec![]
+}
+
+fn default_rules() -> Vec<RouterRule> {
+    vec![]
 }

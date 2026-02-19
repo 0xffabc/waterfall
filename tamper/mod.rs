@@ -1,4 +1,56 @@
-use crate::core;
+use crate::{core, tamper::lexer::PatternToken};
+
+pub mod lexer;
+pub mod service;
+
+pub fn edit_packet_by_pattern(
+    pattern: Vec<PatternToken>,
+    replacement: Vec<PatternToken>,
+    packet: &mut Vec<u8>,
+) {
+    debug_assert!(pattern.len() == replacement.len());
+
+    let mut index = 0;
+
+    loop {
+        if index + pattern.len() > packet.len() {
+            break;
+        }
+
+        let mut match_found = true;
+
+        for pattern_index in 0..pattern.len() {
+            match pattern[pattern_index] {
+                PatternToken::KnownVariable(byte) => {
+                    if byte != packet[index + pattern_index] {
+                        match_found = false;
+                        break;
+                    }
+                }
+
+                PatternToken::UnknownVariable => continue,
+            }
+        }
+
+        if match_found {
+            for replacement_index in 0..replacement.len() {
+                match replacement[replacement_index] {
+                    PatternToken::KnownVariable(byte) => {
+                        if index + replacement_index < packet.len() {
+                            packet[index + replacement_index] = byte;
+                        }
+                    }
+
+                    PatternToken::UnknownVariable => {}
+                }
+            }
+
+            index += pattern.len();
+        } else {
+            index += 1;
+        }
+    }
+}
 
 pub fn edit_http(mut data: Vec<u8>) -> Vec<u8> {
     let conf = core::parse_args();

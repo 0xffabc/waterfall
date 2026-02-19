@@ -1,7 +1,7 @@
 use crate::core::parse_args;
 use crate::core::router::{Router, RouterInterjectionStatus};
 use crate::core::socket::SocketOps;
-use crate::socks::pipe::pipe_sockets;
+use crate::socks::pipe::async_pipe::pipe_sockets;
 use crate::IpParser;
 
 mod pipe;
