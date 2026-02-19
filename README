@@ -3,9 +3,7 @@ Waterfall
 
 Waterfall's a network traffic modification software written in Rust
 
-The traffic is captured via a SOCKS5 proxy and requires a client that handles direct socket connections
-
-Meaning socks2tun/etc. is not supported yet, however the author is working on it
+The traffic is captured via a SOCKS5 proxy and requires a client that handles direct socket connections properly
 
 Build information
 -----------------
@@ -25,6 +23,11 @@ Limitations
 * No UDP support (fixable)
 * No IPv6 support (fixable)
 * Inability to inject fabricated TCP packets in the stream (libpcap solves that)
+* Inability to select a custom/multiple DNS servers. This is critical for a scenario when you have to use a DNS multiplexer. Even now, you might see waterfall-proxy falling back to 0.0.0.0:443 and expecting a transparent proxy here.
+  The DNS resolver is already asynchronous, so there wouldn't be any problem in implementing the DNS multiplexer functionality.
+* Patterns mandate equal size for search and replacement queries.
+* Lack of customization for fake packets RNG
+* Inability to choose a Teredo interface on Windows as a fallback for `iface` config option on IPv6
 
 Most of these limitations are eventually fixable and will be patched over time
 However, you can make a PR if you're interested
@@ -191,6 +194,39 @@ Pattern lexer/compiler will panic before starting the SOCKS5 proxy in these case
 
 In an event of an error, the lexer will stop the whole program and print an error message.
 
+Getting waterfall to work on nekoray/socks2tun
+----------------------------------------------
+
+Nekoray support is highly experimental as for now and requires a lot of manual configuration
+Let's say, you're using nekoray, which allows you to specify CIDR/process bypass for TUN mode
+
+Firstly, run ifconfig/ipconfig to check which interface/adapter is used for the network
+For me, that would be `wlan0`. If you're on windows, it would look like something of 'Ethernet'.
+
+Set the target interface (`iface` field) to the device name in your configuration:
+
+```
+<bind-options
+        host="192.168.1.101"
+        port="14768"
+        iface="Ethernet"
+        iface-mtu="1500"
+        iface-ipv4-ip="0.0.0.0"
+        iface-ipv6-ip="::"
+    />
+```
+
+As previously mentioned, iface-mtu|iface-ip*-ip are currently reserved, so don't touch them.
+After that, you must configure your proxy client to not capture waterfall-proxy's socket connections.
+It's practically known that socket2-ext's bind_device dies to wintun's capture intention
+Therefore, you'll have to setup CIDR ranges on your local network, and for extra safety, process names
+for me, the only CIDR would be 172.16.0.0/12, and the process would be 'waterfall'
+On Windows, I also had to use 192.168.0.1/24 and svchost (otherwise, every packet fell into neko-tun queue)
+If you're unsure, use wireshark to check which CIDRs you need to exclude in the proxy client configuration.
+
+And the next (most important part)! Right now, the nekoray method is unstable. You have to make it
+forward IPv6 and UDP directly, bypassing the waterfall-proxy. In future, this would be fixed.
+
 Implementation details
 ----------------------
 
@@ -208,7 +244,6 @@ Planned features
 - Config verification
 - Eventually waterfall will become a more advanced traffic inspection and modification tool, rather than just a censorship evasion tool
 - Eventually waterfall will become an autonomous censorship evasion tool
-- Socks2tun will be supported
 - A more advanced packet injection config
 
 Useful sources
