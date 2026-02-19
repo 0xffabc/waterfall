@@ -4,7 +4,6 @@ use socket2::{Domain, Protocol, Socket, Type};
 use std::io::Write;
 use std::net::SocketAddr;
 use std::net::ToSocketAddrs;
-use std::thread;
 use std::time::Duration;
 use tokio::net::TcpStream;
 
@@ -18,8 +17,8 @@ pub struct SocketOps();
 
 impl SocketOps {
     fn cutoff_options(so_clone: Socket, so_opt_cutoff: u64) {
-        thread::spawn(move || {
-            thread::sleep(Duration::from_millis(so_opt_cutoff));
+        tokio::spawn(async move {
+            tokio::time::sleep(Duration::from_millis(so_opt_cutoff)).await;
 
             so_clone.set_recv_buffer_size(16653).unwrap();
             so_clone.set_send_buffer_size(16653).unwrap();

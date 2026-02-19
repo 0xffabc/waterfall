@@ -8,6 +8,7 @@ anyhow = "1.0.101"
 clap = { version = "4.5.59", features = ["derive"] }
 curl = "0.4.47"
 document-features = "0.2.12"
+futures = "0.3.32"
 glob = "0.3.3"
 libc = "0.2.169"
 log = "0.4.29"

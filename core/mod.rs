@@ -10,6 +10,8 @@ pub mod socket;
 pub mod strategy;
 pub mod weak_range;
 
+use futures::channel::mpsc;
+
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
 pub enum NetworkProtocol {
     UDP,
@@ -27,18 +29,27 @@ use crate::core::aux_config::AuxConfig;
 
 use clap::Parser;
 
-use notify::{Event, RecursiveMode, Result, Watcher};
+use notify::{RecommendedWatcher, RecursiveMode, Result, Watcher};
 
-pub fn core_launch_task() -> Result<()> {
-    let (tx, rx) = std::sync::mpsc::channel::<Result<Event>>();
+use futures::{SinkExt, StreamExt};
 
-    let mut watcher = notify::recommended_watcher(tx)?;
+pub async fn core_launch_task() -> Result<()> {
+    let (mut tx, mut rx) = mpsc::channel(1);
+
+    let mut watcher = RecommendedWatcher::new(
+        move |res| {
+            futures::executor::block_on(async {
+                tx.send(res).await.unwrap();
+            })
+        },
+        notify::Config::default(),
+    )?;
 
     let path = Args::parse().config;
 
     watcher.watch(Path::new(&path), RecursiveMode::Recursive)?;
 
-    for res in rx {
+    while let Some(res) = rx.next().await {
         match res {
             Ok(_) => {
                 let mut lock = CONFIG.lock().unwrap();

@@ -26,8 +26,7 @@ use crate::desync::utils::filter::Whitelist;
 
 use std::net::TcpListener;
 
-use std::thread;
-use std::time;
+use std::time::{self, Duration};
 
 async fn execute_l4_bypasses<'a>(
     socket: &mut tokio::net::TcpStream,
@@ -213,7 +212,7 @@ fn execute_l5_bypasses(data: &[u8]) -> Vec<u8> {
     current_data
 }
 
-fn execute_l7_bypasses(config: &AuxConfig) {
+async fn execute_l7_bypasses(config: &AuxConfig) {
     let mut rand: Random = Random::new(
         (time::SystemTime::now()
             .duration_since(time::SystemTime::UNIX_EPOCH)
@@ -235,7 +234,7 @@ fn execute_l7_bypasses(config: &AuxConfig) {
     if jitter_millis > 0 {
         let random_jitter: u64 = ((rand_num * jitter_millis) / 256u64).into();
 
-        thread::sleep(time::Duration::from_millis(random_jitter));
+        tokio::time::sleep(Duration::from_millis(random_jitter)).await;
     }
 }
 
@@ -250,8 +249,7 @@ pub async fn client_hook<'a>(
     let mut l5_data = execute_l5_bypasses(data);
 
     execute_l4_bypasses(socket, &config, &mut l5_data, &sni_data).await?;
-
-    execute_l7_bypasses(&config);
+    execute_l7_bypasses(&config).await;
 
     Ok(l5_data)
 }
@@ -259,14 +257,16 @@ pub async fn client_hook<'a>(
 #[macro_use]
 extern crate log;
 
-#[tokio::main]
+#[tokio::main(flavor = "multi_thread", worker_threads = 12)]
 async fn main() -> Result<()> {
     unsafe {
         std::env::set_var("RUST_LOG", "trace");
     }
 
-    thread::spawn(|| {
-        let _ = crate::core::core_launch_task();
+    tokio::spawn(async {
+        crate::core::core_launch_task()
+            .await
+            .expect("Config hot-reloader daemon has fallen");
     });
 
     pretty_env_logger::init_timed();
@@ -284,8 +284,7 @@ async fn main() -> Result<()> {
         )
         .replace("\"", "")
         .replace("\"", ""),
-    )
-    .unwrap();
+    )?;
 
     info!(
         "Socks5 proxy bound at {}:{}",

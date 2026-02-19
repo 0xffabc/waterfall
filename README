@@ -42,7 +42,7 @@ examples/ are outdated, use /config.xml instead
   - send-clienthello sends a fake CH with sni=clienthello-sni
   - <send-twice>{bool}</send-twice>, where {bool} decides whether to duplicate the fake or not
 * socket-options:
-  - desync-cutoff-ms is useful for not processing already hanging connections
+  - desync-cutoff-ms <N> is useful for setting a low initial send/recv buffer. Both buffers would reset to 16kb after N ms.
   - disable-sack works ONLY on linux with BPF filters. We'll need functionality to decompose this in a configuration option
       (something like <BPF code="..." jt="0" jf="8" k="0x00000036" />), therefore disable-sack might get removed
   - oob-hell-data changes what bytes OobStream sends as OOB between separated packets. OobStream CAN and WILL confuse Wireshark's DPI a lot
@@ -162,7 +162,7 @@ Implementation details
 * SNI, IP router scopes are handled before the socket creation, to allow FORWARD router rule
 * Fakedns action type makes sense only with the DnsQuery router scope
 * Router will use the first rule available for current context and ignore every other one
-* Current SOCKS5 proxy is inefficient and uses a BufReader/BufWriter pair, which causes regressed network latencies
+* Waterfall is currently fully async
 
 Planned features
 ----------------

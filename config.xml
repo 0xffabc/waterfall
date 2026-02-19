@@ -10,7 +10,7 @@
     <fake-packet-options
         ttl="64"
         sni="yandex.ru"
-        only-oob="false"
+        only-oob="true"
         protocol-http="false"
         protocol-http-host="yandex.ru"
         send-reversed="false"
