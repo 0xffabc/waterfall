@@ -8,8 +8,6 @@ pub fn edit_packet_by_pattern(
     replacement: Vec<PatternToken>,
     packet: &mut Vec<u8>,
 ) {
-    debug_assert!(pattern.len() == replacement.len());
-
     let mut index = 0;
 
     loop {
@@ -33,19 +31,60 @@ pub fn edit_packet_by_pattern(
         }
 
         if match_found {
-            for replacement_index in 0..replacement.len() {
-                match replacement[replacement_index] {
-                    PatternToken::KnownVariable(byte) => {
-                        if index + replacement_index < packet.len() {
-                            packet[index + replacement_index] = byte;
+            if pattern.len() == replacement.len() {
+                for replacement_index in 0..replacement.len() {
+                    match replacement[replacement_index] {
+                        PatternToken::KnownVariable(byte) => {
+                            if index + replacement_index < packet.len() {
+                                packet[index + replacement_index] = byte;
+                            }
                         }
+
+                        PatternToken::UnknownVariable => {}
                     }
-
-                    PatternToken::UnknownVariable => {}
                 }
-            }
 
-            index += pattern.len();
+                index += pattern.len();
+            } else if pattern.len() < replacement.len() {
+                let extra = replacement.len() - pattern.len();
+                let pos = index + pattern.len();
+
+                /* We have to extend the vec with zero bytes and
+                 * overlap everything on it afterwards
+                 */
+                packet.splice(pos..pos, vec![0; extra]);
+
+                for replacement_index in 0..replacement.len() {
+                    match replacement[replacement_index] {
+                        PatternToken::KnownVariable(byte) => {
+                            if index + replacement_index < packet.len() {
+                                packet[index + replacement_index] = byte;
+                            }
+                        }
+
+                        PatternToken::UnknownVariable => {}
+                    }
+                }
+
+                index += replacement.len();
+            } else {
+                /* replacement is less than pattern */
+                for replacement_index in 0..replacement.len() {
+                    match replacement[replacement_index] {
+                        PatternToken::KnownVariable(byte) => {
+                            if index + replacement_index < packet.len() {
+                                packet[index + replacement_index] = byte;
+                            }
+                        }
+
+                        PatternToken::UnknownVariable => {}
+                    }
+                }
+
+                packet.drain((index + replacement.len())..(index + pattern.len()));
+
+                index += replacement.len();
+            }
         } else {
             index += 1;
         }

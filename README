@@ -25,7 +25,6 @@ Limitations
 * Inability to inject fabricated TCP packets in the stream (libpcap solves that)
 * Inability to select a custom/multiple DNS servers. This is critical for a scenario when you have to use a DNS multiplexer. Even now, you might see waterfall-proxy falling back to 0.0.0.0:443 and expecting a transparent proxy here.
   The DNS resolver is already asynchronous, so there wouldn't be any problem in implementing the DNS multiplexer functionality.
-* Patterns mandate equal size for search and replacement queries.
 * Lack of customization for fake packets RNG
 * Inability to choose a Teredo interface on Windows as a fallback for `iface` config option on IPv6
 
@@ -169,8 +168,11 @@ A great example is youtube.com, you can interchange blogger.com and youtube.com 
 This allows us to bypass the censor
 
 Technical limitations:
-* Patterns are asserted to be of the same size, which means adjusting TLS extensions if you increase or decrease a field's size via a pattern
-* Patterns aren't a subject for hot-reloading, you'll have to restart waterfall after updating one of them.
+  * Patterns aren't a subject for hot-reloading, you'll have to restart waterfall after updating one of them.
+
+A pattern's sizes can differ from each other. In the case when the replacement is smaller, waterfall-proxy will remove the last trailing
+elements from the vector
+When the replacement is longer, waterfall will shift every other element to the right side
 
 A typical pattern configuration looks like this
 
@@ -180,6 +182,17 @@ A typical pattern configuration looks like this
             replacement="x7777772E626C6F676765722E636F6D"
         />
     </pattern-options>
+
+This pattern replaces every youtube.com string to blogger.com, which allows you
+to open youtube on some ISPs. You'll have to configure domain exclusion lists for the domains
+that aren't compatible with google's SAN certificate
+
+Typically, the youtube.com page would load just fine (probably because of caching), but it would notify you
+about the lack of internet connection
+
+You might want to use patterns for manual TLS fragmentation and JA3 fingerprint modification.
+
+Always remember that the servers without a SAN certificate wouldn't accept a miscellaneous SNI.
 
 Where any [AA] is a valid uppercase hex integer, and x is an unknown variable
 Formally, waterfall will skip every byte if it sees the b'x' token in any of the patterns
