@@ -5,10 +5,13 @@ use tokio::io::AsyncWriteExt;
 use anyhow::Result;
 
 use crate::client_hook;
+use crate::core::parse_args;
 
 pub async fn pipe_sockets(socket: TcpStream, stream: TcpStream) -> Result<()> {
     let mut socket_open = true;
     let mut stream_open = true;
+
+    let config = parse_args();
 
     let socket: std::net::TcpStream = socket.into_std()?;
     let stream: std::net::TcpStream = stream.into_std()?;
@@ -22,8 +25,8 @@ pub async fn pipe_sockets(socket: TcpStream, stream: TcpStream) -> Result<()> {
     let mut socket = TcpStream::from_std(socket)?;
     let mut stream = TcpStream::from_std(stream)?;
 
-    let mut buffer1: Vec<u8> = vec![0u8; 1024];
-    let mut buffer2: Vec<u8> = vec![0u8; 1024];
+    let mut buffer1: Vec<u8> = vec![0u8; config.socket_options.so_send_size];
+    let mut buffer2: Vec<u8> = vec![0u8; config.socket_options.so_recv_size];
 
     loop {
         if !socket_open || !stream_open {
@@ -46,7 +49,7 @@ pub async fn pipe_sockets(socket: TcpStream, stream: TcpStream) -> Result<()> {
                     Ok(n) => {
                         let data = &buffer1[..n];
 
-                        let transformed = client_hook(&mut socket, data).await?;
+                        let transformed = client_hook(&mut stream, data).await?;
 
                         stream.write_all(&transformed).await?;
                     }

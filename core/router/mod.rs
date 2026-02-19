@@ -5,6 +5,8 @@ use crate::{
     desync::utils::ip::IpParser,
 };
 
+use anyhow::Result;
+
 pub struct Router();
 
 pub enum RouterInterjectionStatus {
@@ -54,13 +56,13 @@ impl Router {
         }
     }
 
-    pub fn interject_dns<'a>(
+    pub async fn interject_dns<'a>(
         ref config: AuxConfig,
         ref buffer: impl AsRef<[u8]>,
-    ) -> RouterInterjectionStatus {
+    ) -> Result<RouterInterjectionStatus> {
         let rules = Self::query_router_rules(config, &RouterRuleType::FakeDNS);
 
-        let ip_parser_result = IpParser::parse(buffer.as_ref());
+        let ip_parser_result = IpParser::parse(buffer.as_ref()).await?;
 
         for rule in rules {
             if rule.scope != RouterRuleScope::DnsQuery {
@@ -69,7 +71,7 @@ impl Router {
 
             let pattern = match Pattern::new(&rule.rule_match) {
                 Ok(pattern) => pattern,
-                Err(_) => return RouterInterjectionStatus::Allow,
+                Err(_) => return Ok(RouterInterjectionStatus::Allow),
             };
 
             if pattern.matches(
@@ -77,14 +79,14 @@ impl Router {
                     .into_owned()
                     .as_ref(),
             ) {
-                return Self::router_process(
+                return Ok(Self::router_process(
                     rule.rule_type.clone(),
                     rule.exec.clone(),
                     ip_parser_result.host_unprocessed,
-                );
+                ));
             }
         }
 
-        RouterInterjectionStatus::Allow
+        Ok(RouterInterjectionStatus::Allow)
     }
 }

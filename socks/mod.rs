@@ -21,10 +21,10 @@ pub async fn socks5_proxy(mut client: TcpStream) -> Result<()> {
 
     let config = parse_args();
 
-    let router_responce = Router::interject_dns(config, &buffer);
+    let router_responce = Router::interject_dns(config, &buffer).await?;
 
     let parsed_data: IpParser = match router_responce {
-        RouterInterjectionStatus::Allow => IpParser::parse(&buffer),
+        RouterInterjectionStatus::Allow => IpParser::parse(&buffer).await?,
         RouterInterjectionStatus::AutoResolved(parsed) => parsed,
     };
 
