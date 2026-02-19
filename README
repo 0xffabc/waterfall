@@ -154,6 +154,43 @@ Available types
 * FRAGTLS - Splits TLS header in two parts, used to be a powerful counter-attack against GFW. For more info: https://upb-syssec.github.io/blog/2023/record-fragmentation/. A particular case of geneva's `tamper`
 *
 
+AOB Scanning on packets and replacements
+----------------------------------------
+
+Waterfall provides functionality for AOB scanning on every packet processed by client_hook
+If you want to use AOB scanning via patterns for the whole connection, adjust your whitelists
+
+A pattern specifies how the internal DPI should detect/replace different bytes in packets
+This is useful for replacing server name indication to a different one, if the website provides a SAN certificate
+A great example is youtube.com, you can interchange blogger.com and youtube.com for TLS connections
+This allows us to bypass the censor
+
+Technical limitations:
+* Patterns are asserted to be of the same size, which means adjusting TLS extensions if you increase or decrease a field's size via a pattern
+* Patterns aren't a subject for hot-reloading, you'll have to restart waterfall after updating one of them.
+
+A typical pattern configuration looks like this
+
+    <pattern-options>
+        <patterns
+            pattern="x7777772E796F75747562652E636F6D"
+            replacement="x7777772E626C6F676765722E636F6D"
+        />
+    </pattern-options>
+
+Where any [AA] is a valid uppercase hex integer, and x is an unknown variable
+Formally, waterfall will skip every byte if it sees the b'x' token in any of the patterns
+Pattern lexer/compiler will panic before starting the SOCKS5 proxy in these cases:
+* The pattern's length is less than 2
+* A hex integer is being finished at an index of 0
+* Hex integer group out of previous and current byte is not a valid ASCII string
+* The ASCII string is not a valid hex
+* The lexer saw the b'x' token when expecting a last digit of hex
+* The lexer saw an unknown token
+* The lexer didn't process the pattern completely
+
+In an event of an error, the lexer will stop the whole program and print an error message.
+
 Implementation details
 ----------------------
 
@@ -172,7 +209,7 @@ Planned features
 - Eventually waterfall will become a more advanced traffic inspection and modification tool, rather than just a censorship evasion tool
 - Eventually waterfall will become an autonomous censorship evasion tool
 - Socks2tun will be supported
-- Performance regress (from 31ms to 80ms on krunker.io) will be fixed
+- A more advanced packet injection config
 
 Useful sources
 --------------
