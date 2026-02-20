@@ -260,17 +260,59 @@ pub async fn client_hook<'a>(
 #[macro_use]
 extern crate log;
 
+#[cfg(not(any(
+    target_arch = "mips",
+    target_arch = "mips64",
+    target_arch = "powerpc",
+    target_arch = "powerpc64",
+    target_arch = "riscv64",
+    target_arch = "s390x",
+    target_arch = "sparc64",
+    target_arch = "loongarch64",
+    target_os = "solaris",
+    target_os = "illumos",
+    target_os = "freebsd",
+    target_os = "netbsd",
+    target_os = "openbsd",
+    target_os = "dragonfly",
+    target_env = "musl",
+)))]
+async fn spawn_hot_reloader() {
+    tokio::spawn(async {
+        crate::core::core_launch_task()
+            .await
+            .expect("Config hot-reloader daemon has fallen");
+    });
+}
+
+#[cfg(any(
+    target_arch = "mips",
+    target_arch = "mips64",
+    target_arch = "powerpc",
+    target_arch = "powerpc64",
+    target_arch = "riscv64",
+    target_arch = "s390x",
+    target_arch = "sparc64",
+    target_arch = "loongarch64",
+    target_os = "solaris",
+    target_os = "illumos",
+    target_os = "freebsd",
+    target_os = "netbsd",
+    target_os = "openbsd",
+    target_os = "dragonfly",
+    target_env = "musl",
+))]
+async fn spawn_hot_reloader() {
+    warn!("Hot reloading is not available on dangerous targets");
+}
+
 #[tokio::main(flavor = "multi_thread", worker_threads = 12)]
 async fn main() -> Result<()> {
     unsafe {
         std::env::set_var("RUST_LOG", "INFO");
     }
 
-    tokio::spawn(async {
-        crate::core::core_launch_task()
-            .await
-            .expect("Config hot-reloader daemon has fallen");
-    });
+    spawn_hot_reloader().await;
 
     pretty_env_logger::init_timed();
 

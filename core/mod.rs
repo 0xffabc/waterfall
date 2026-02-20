@@ -115,7 +115,7 @@ pub async fn core_launch_task() -> Result<()> {
     target_os = "dragonfly",
     target_env = "musl",
 ))]
-pub async fn core_launch_task() -> Result<()> {
+pub async fn core_launch_task() -> anyhow::Result<()> {
     Ok(())
 }
 
