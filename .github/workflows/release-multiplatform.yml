@@ -184,10 +184,5 @@ jobs:
           git config --local user.email "qulsar@nicemail.i2p"
           git config --local user.name "Qulsar"
           git add dist/
-          if ! git diff --staged --quiet; then
-            git commit -m "Update dist"
-            git pull --rebase origin ${{ github.ref_name }}
-            git push origin ${{ github.ref_name }}
-          else
-            echo "No changes to commit"
-          fi
+          git commit -m "Dist update"
+          git push
