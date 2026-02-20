@@ -20,12 +20,10 @@ Limitations
   You should compile curl with OpenSSL instead. Moreover, OpenSSL is a correct ssl implementation.
   You can also consider rustls (if you're on Rust, obviously)
   In future, I'll add a configuration flag to disable async socket piping and use the old multi-threaded approach instead.
-* No IPv6 support (fixable)
 * Inability to inject fabricated TCP packets in the stream (libpcap solves that)
-* Inability to select a custom/multiple DNS servers. This is critical for a scenario when you have to use a DNS multiplexer. Even now, you might see waterfall-proxy falling back to 0.0.0.0:443 and expecting a transparent proxy here.
-  The DNS resolver is already asynchronous, so there wouldn't be any problem in implementing the DNS multiplexer functionality.
 * Lack of customization for fake packets RNG
 * Inability to choose a Teredo interface on Windows as a fallback for `iface` config option on IPv6
+* DNS leak in waterfall-proxy makes DoH/non DoH DNS requests go through the system, and not waterfall-proxy
 
 Most of these limitations are eventually fixable and will be patched over time
 However, you can make a PR if you're interested
@@ -236,8 +234,33 @@ for me, the only CIDR would be 172.16.0.0/12, and the process would be 'waterfal
 On Windows, I also had to use 192.168.0.1/24 and svchost (otherwise, every packet fell into neko-tun queue)
 If you're unsure, use wireshark to check which CIDRs you need to exclude in the proxy client configuration.
 
-And the next (most important part)! Right now, the nekoray method is unstable. You have to make it
-forward IPv6 and UDP directly, bypassing the waterfall-proxy. In future, this would be fixed.
+DNS multiplexer
+---------------
+
+Waterfall-proxy will try to resolve every domain using DoH by default.
+This makes it harder to censor or watch which websites you're visiting, since DNS queries are encrypted.
+DNS multiplexer can be disabled (but is is NOT recommended) with `integrated_doh_enabled` configurator option.
+
+Typically, a DNS multiplexer config looks like this:
+
+```
+    <dns-options integrated_doh_enabled="true">
+        <doh-servers url="https://cloudflare-dns.com/dns-query?dns={}" />
+        <doh-servers
+            url="https://mozilla.cloudflare-dns.com/dns-query?dns={}"
+        />
+        <doh-servers url="https://dns.google/dns-query?dns={}" />
+        <doh-servers url="https://dns.quad9.net/dns-query?dns={}" />
+        <doh-servers url="https://freedns.controld.com/p0?dns={}" />
+    </dns-options>
+```
+
+Where {} is the field for replacement of the DNS query, for spec-incompilant resolvers
+Having multiple resolvers is always better, since one of them could just stop working
+due to your ISP or different causes.
+
+Note that the OS would still resolve the domains of your DNS servers. I'm looking forward to
+fixing this issue by forcing them to go through waterfall-proxy.
 
 UDP support
 -----------
