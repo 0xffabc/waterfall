@@ -33,6 +33,7 @@ pub async fn socks5_proxy(mut client: TcpStream) -> Result<()> {
         info!("Got a UDP associate");
 
         let relay = UdpSocket::bind("0.0.0.0:0").await?;
+
         let addr = relay.local_addr()?;
 
         let mut packet: Vec<u8> = vec![5, 0, 0];
@@ -63,10 +64,26 @@ pub async fn socks5_proxy(mut client: TcpStream) -> Result<()> {
 
     let mut packet = vec![5, 0, 0, parsed_data.dest_addr_type];
 
-    packet.push(parsed_data.host_unprocessed.len() as u8);
+    if parsed_data.dest_addr_type == 3 {
+        packet.push(parsed_data.host_unprocessed.len() as u8);
+    }
 
     packet.extend_from_slice(&parsed_data.host_unprocessed);
     packet.extend_from_slice(&parsed_data.port.to_be_bytes());
+
+    if parsed_data.dest_addr_type != 1
+        && parsed_data.dest_addr_type != 3
+        && parsed_data.dest_addr_type != 4
+    {
+        packet[1] = 0x08;
+
+        client.write_all(&packet).await?;
+
+        return Err(anyhow!(
+            "Unknown destination type: {}",
+            &parsed_data.dest_addr_type
+        ));
+    }
 
     let sock_addr = match parsed_data.host_raw.len() {
         4 => {

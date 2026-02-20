@@ -126,7 +126,13 @@ impl IpParser {
                     is_udp,
                 })
             }
-            _ => panic!("Waterfall got an unsupported SOCKS5 dest type: {dest_addr_type}"),
+            _ => Ok(IpParser {
+                dest_addr_type,
+                host_raw: vec![0, 0, 0, 0],
+                host_unprocessed: vec![0, 0, 0, 0],
+                port: 13437,
+                is_udp,
+            }),
         }
     }
 }
