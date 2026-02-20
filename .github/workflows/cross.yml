@@ -1,0 +1,347 @@
+name: crossbuild and release
+
+on:
+  workflow_dispatch:
+  release:
+    types: [created]
+
+permissions:
+  contents: write
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  linux-x86:
+    name: Linux x86 (${{ matrix.config.name }})
+    runs-on: ubuntu-20.04
+    strategy:
+      fail-fast: false
+      matrix:
+        config:
+          - name: amd64-gnu
+            target: x86_64-unknown-linux-gnu
+            binary: waterfall-linux-amd64
+          - name: amd64-musl
+            target: x86_64-unknown-linux-musl
+            binary: waterfall-linux-amd64-musl
+          - name: i686-gnu
+            target: i686-unknown-linux-gnu
+            binary: waterfall-linux-386
+          - name: i686-musl
+            target: i686-unknown-linux-musl
+            binary: waterfall-linux-386-musl
+    
+    steps:
+      - uses: actions/checkout@v3
+      - name: Build binary
+        uses: houseabsolute/actions-rust-cross@v0
+        with:
+          command: build
+          target: ${{ matrix.config.target }}
+          args: --locked --release
+          strip: true
+      - name: Prepare assets
+        run: |
+          cd target/${{ matrix.config.target }}/release
+          mv waterfall ${{ matrix.config.binary }}
+          shasum -a 256 ${{ matrix.config.binary }} | cut -d ' ' -f 1 > ${{ matrix.config.binary }}.sha256
+          mkdir -p ../../../assets
+          mv ${{ matrix.config.binary }}* ../../../assets/
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v3
+        with:
+          name: linux-x86-assets
+          path: assets/
+  linux-arm:
+    name: Linux ARM (${{ matrix.config.name }})
+    runs-on: ubuntu-20.04
+    strategy:
+      fail-fast: false
+      matrix:
+        config:
+          - name: arm64-gnu
+            target: aarch64-unknown-linux-gnu
+            binary: waterfall-linux-arm64
+            deps: gcc-aarch64-linux-gnu
+          - name: arm64-musl
+            target: aarch64-unknown-linux-musl
+            binary: waterfall-linux-arm64-musl
+            deps: gcc-aarch64-linux-gnu
+          - name: armv7-gnu
+            target: armv7-unknown-linux-gnueabihf
+            binary: waterfall-linux-armv7
+            deps: gcc-arm-linux-gnueabihf
+          - name: armv7-musl
+            target: armv7-unknown-linux-musleabihf
+            binary: waterfall-linux-armv7-musl
+            deps: gcc-arm-linux-gnueabihf
+          - name: armv6-gnu
+            target: arm-unknown-linux-gnueabihf
+            binary: waterfall-linux-armv6
+            deps: gcc-arm-linux-gnueabihf
+          - name: armv5-gnu
+            target: arm-unknown-linux-gnueabi
+            binary: waterfall-linux-armv5
+            deps: gcc-arm-linux-gnueabi
+    steps:
+      - uses: actions/checkout@v3
+      - name: Install cross-compilation tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ${{ matrix.config.deps }}
+      - name: Build binary
+        uses: houseabsolute/actions-rust-cross@v0
+        with:
+          command: build
+          target: ${{ matrix.config.target }}
+          args: --locked --release
+          strip: true
+      - name: Prepare assets
+        run: |
+          cd target/${{ matrix.config.target }}/release
+          mv waterfall ${{ matrix.config.binary }}
+          shasum -a 256 ${{ matrix.config.binary }} | cut -d ' ' -f 1 > ${{ matrix.config.binary }}.sha256
+          mkdir -p ../../../assets
+          mv ${{ matrix.config.binary }}* ../../../assets/
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v3
+        with:
+          name: linux-arm-assets
+          path: assets/
+  linux-powerpc:
+    name: Linux PowerPC (${{ matrix.config.name }})
+    runs-on: ubuntu-20.04
+    strategy:
+      fail-fast: false
+      matrix:
+        config:
+          - name: ppc64-gnu
+            target: powerpc64-unknown-linux-gnu
+            binary: waterfall-linux-ppc64
+            deps: gcc-powerpc64-linux-gnu
+          - name: ppc64le-gnu
+            target: powerpc64le-unknown-linux-gnu
+            binary: waterfall-linux-ppc64le
+            deps: gcc-powerpc64le-linux-gnu
+          - name: powerpc-gnu
+            target: powerpc-unknown-linux-gnu
+            binary: waterfall-linux-powerpc
+            deps: gcc-powerpc-linux-gnu
+    steps:
+      - uses: actions/checkout@v3
+      - name: Install cross-compilation tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ${{ matrix.config.deps }}
+      - name: Build binary
+        uses: houseabsolute/actions-rust-cross@v0
+        with:
+          command: build
+          target: ${{ matrix.config.target }}
+          args: --locked --release
+          strip: true
+      - name: Prepare assets
+        run: |
+          cd target/${{ matrix.config.target }}/release
+          mv waterfall ${{ matrix.config.binary }}
+          shasum -a 256 ${{ matrix.config.binary }} | cut -d ' ' -f 1 > ${{ matrix.config.binary }}.sha256
+          mkdir -p ../../../assets
+          mv ${{ matrix.config.binary }}* ../../../assets/
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v3
+        with:
+          name: linux-powerpc-assets
+          path: assets/
+  linux-mips:
+    name: Linux MIPS (${{ matrix.config.name }})
+    runs-on: ubuntu-20.04
+    strategy:
+      fail-fast: false
+      matrix:
+        config:
+          - name: mips64-gnu
+            target: mips64-unknown-linux-gnuabi64
+            binary: waterfall-linux-mips64
+            deps: gcc-mips64-linux-gnuabi64
+          - name: mips64el-gnu
+            target: mips64el-unknown-linux-gnuabi64
+            binary: waterfall-linux-mips64le
+            deps: gcc-mips64el-linux-gnuabi64
+          - name: mips-gnu
+            target: mips-unknown-linux-gnu
+            binary: waterfall-linux-mips
+            deps: gcc-mips-linux-gnu
+          - name: mipsel-gnu
+            target: mipsel-unknown-linux-gnu
+            binary: waterfall-linux-mipsel
+            deps: gcc-mipsel-linux-gnu
+          - name: mips-musl
+            target: mips-unknown-linux-musl
+            binary: waterfall-linux-mips-musl
+            deps: gcc-mips-linux-gnu
+          - name: mipsel-musl
+            target: mipsel-unknown-linux-musl
+            binary: waterfall-linux-mipsel-musl
+            deps: gcc-mipsel-linux-gnu
+    steps:
+      - uses: actions/checkout@v3
+      - name: Install cross-compilation tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ${{ matrix.config.deps }}
+      - name: Build binary
+        uses: houseabsolute/actions-rust-cross@v0
+        with:
+          command: build
+          target: ${{ matrix.config.target }}
+          args: --locked --release
+          strip: true
+      - name: Prepare assets
+        run: |
+          cd target/${{ matrix.config.target }}/release
+          mv waterfall ${{ matrix.config.binary }}
+          shasum -a 256 ${{ matrix.config.binary }} | cut -d ' ' -f 1 > ${{ matrix.config.binary }}.sha256
+          mkdir -p ../../../assets
+          mv ${{ matrix.config.binary }}* ../../../assets/
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v3
+        with:
+          name: linux-mips-assets
+          path: assets/
+  linux-other:
+    name: Linux Other (${{ matrix.config.name }})
+    runs-on: ubuntu-20.04
+    strategy:
+      fail-fast: false
+      matrix:
+        config:
+          - name: riscv64-gnu
+            target: riscv64gc-unknown-linux-gnu
+            binary: waterfall-linux-riscv64
+            deps: gcc-riscv64-linux-gnu
+          - name: s390x-gnu
+            target: s390x-unknown-linux-gnu
+            binary: waterfall-linux-s390x
+            deps: gcc-s390x-linux-gnu
+    steps:
+      - uses: actions/checkout@v3
+      - name: Install cross-compilation tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ${{ matrix.config.deps }}
+      - name: Build binary
+        uses: houseabsolute/actions-rust-cross@v0
+        with:
+          command: build
+          target: ${{ matrix.config.target }}
+          args: --locked --release
+          strip: true
+      - name: Prepare assets
+        run: |
+          cd target/${{ matrix.config.target }}/release
+          mv waterfall ${{ matrix.config.binary }}
+          shasum -a 256 ${{ matrix.config.binary }} | cut -d ' ' -f 1 > ${{ matrix.config.binary }}.sha256
+          mkdir -p ../../../assets
+          mv ${{ matrix.config.binary }}* ../../../assets/
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v3
+        with:
+          name: linux-other-assets
+          path: assets/
+  macos:
+    name: macOS (${{ matrix.config.name }})
+    runs-on: macos-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        config:
+          - name: amd64
+            target: x86_64-apple-darwin
+            binary: waterfall-darwin-amd64
+          - name: arm64
+            target: aarch64-apple-darwin
+            binary: waterfall-darwin-arm64
+    steps:
+      - uses: actions/checkout@v3
+      - name: Build binary
+        uses: houseabsolute/actions-rust-cross@v0
+        with:
+          command: build
+          target: ${{ matrix.config.target }}
+          args: --locked --release
+          strip: true
+      - name: Prepare assets
+        run: |
+          cd target/${{ matrix.config.target }}/release
+          mv waterfall ${{ matrix.config.binary }}
+          shasum -a 256 ${{ matrix.config.binary }} | cut -d ' ' -f 1 > ${{ matrix.config.binary }}.sha256
+          mkdir -p ../../../assets
+          mv ${{ matrix.config.binary }}* ../../../assets/
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v3
+        with:
+          name: macos-assets
+          path: assets/
+  windows:
+    name: Windows (${{ matrix.config.name }})
+    runs-on: windows-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        config:
+          - name: amd64-gnu
+            target: x86_64-pc-windows-gnu
+            binary: waterfall-amd64.exe
+          - name: amd64-msvc
+            target: x86_64-pc-windows-msvc
+            binary: waterfall-amd64-msvc.exe
+          - name: i686-gnu
+            target: i686-pc-windows-gnu
+            binary: waterfall-386.exe
+          - name: arm64-msvc
+            target: aarch64-pc-windows-msvc
+            binary: waterfall-arm64.exe
+    steps:
+      - uses: actions/checkout@v3
+      - name: Build binary
+        uses: houseabsolute/actions-rust-cross@v0
+        with:
+          command: build
+          target: ${{ matrix.config.target }}
+          args: --locked --release
+          strip: true
+      - name: Prepare assets
+        shell: bash
+        run: |
+          cd target/${{ matrix.config.target }}/release
+          mv waterfall.exe ${{ matrix.config.binary }}
+          certutil -hashfile ${{ matrix.config.binary }} SHA256 | findstr /v "hash" > ${{ matrix.config.binary }}.sha256
+          mkdir -p ../../../assets
+          mv ${{ matrix.config.binary }}* ../../../assets/
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v3
+        with:
+          name: windows-assets
+          path: assets/
+  release:
+    name: Create Release
+    needs: [linux-x86, linux-arm, linux-powerpc, linux-mips, linux-other, macos, windows]
+    runs-on: ubuntu-latest
+    if: github.event_name == 'release'
+    steps:
+      - name: Download all artifacts
+        uses: actions/download-artifact@v3
+        with:
+          path: artifacts
+      - name: Prepare release assets
+        run: |
+          mkdir release-assets
+          find artifacts -type f -name "waterfall-*" -exec cp {} release-assets/ \;
+          find artifacts -type f -name "*.sha256" -exec cp {} release-assets/ \;
+      - name: Upload to release
+        uses: softprops/action-gh-release@v1
+        with:
+          files: release-assets/*
+          fail_on_unmatched_files: false
