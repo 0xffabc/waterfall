@@ -5,7 +5,7 @@ use crate::{
     desync::utils::doh::parser::{create_queries, parse_dns_response},
 };
 
-use ureq;
+use curl::easy::Easy;
 
 static DNS_SERVERS: OnceLock<Vec<String>> = OnceLock::new();
 
@@ -47,18 +47,36 @@ impl DOHResolver {
     async fn resolve_with(dns_server: &str, data: String) -> Result<Vec<u8>> {
         let url = dns_server.replace("{}", &data);
 
-        let result = tokio::task::spawn_blocking(move || {
-            let bytes = ureq::get(&url)
-                .header("accept", "application/dns-message")
-                .call()?
-                .body_mut()
-                .read_to_vec()?;
+        let result: Result<Vec<u8>> = tokio::task::spawn_blocking(move || {
+            let mut easy = Easy::new();
+            let mut response_data = Vec::new();
 
-            Ok::<Vec<u8>, anyhow::Error>(bytes)
+            easy.url(&url)?;
+
+            easy.http_headers({
+                let mut headers = curl::easy::List::new();
+                headers.append("accept: application/dns-message")?;
+
+                headers
+            })?;
+
+            let mut transfer = easy.transfer();
+
+            transfer.write_function(|data| {
+                response_data.extend_from_slice(data);
+
+                Ok(data.len())
+            })?;
+
+            transfer.perform()?;
+
+            drop(transfer);
+
+            return Ok(response_data);
         })
-        .await??;
+        .await?;
 
-        Ok(result)
+        result
     }
 
     pub async fn doh_resolver(domain: String) -> Result<String> {

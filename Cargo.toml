@@ -7,6 +7,7 @@ edition = "2021"
 anyhow = "1.0.101"
 base64 = "0.22.1"
 clap = { version = "4.5.59", features = ["derive"] }
+curl = "0.4.49"
 document-features = "0.2.12"
 futures = "0.3.32"
 glob = "0.3.3"
@@ -20,8 +21,7 @@ rusdig = "0.2.3"
 serde = { version = "1.0.228", features = ["derive"] }
 socket2 = "0.5.9"
 socket2-ext = "0.1.1"
-tokio = { version = "1.49.0", features = ["full"] }
-ureq = "3.2.0"
+tokio = { version = "1.49.0", features = ["rt", "net", "macros", "rt-multi-thread", "io-util", "time", "sync"] }
 winapi = { version = "0.3", features = ["winsock2", "ws2def", "ws2ipdef", "ws2tcpip"] }
 
 [profile.release]

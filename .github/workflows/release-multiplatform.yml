@@ -156,6 +156,17 @@ jobs:
               gcc-mingw-w64-x86-64 \
               gcc-mingw-w64-i686 \
               freebsd-glue \
+              curl \
+              libcurl-devel \
+              libcurl4-openssl-dev \
+              gcc-multilib \
+              g++-multilib \
+              libc6-dev-i386 \
+              libc6-dev-i386-cross \
+              linux-libc-dev:i386 \
+              gcc-14-loongarch64-linux-gnu \
+              binutils-loongarch64-linux-gnu \
+              libunwind-dev \
               musl-tools \
               musl-dev \
               cmake \
