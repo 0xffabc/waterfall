@@ -1,3 +1,5 @@
+name: Waterfall builder bot
+
 on:
   release:
     types: [published]
@@ -10,103 +12,34 @@ on:
 jobs:
   build:
     name: Build waterfall for ${{ matrix.target }}
-    runs-on: ${{ matrix.os }}
+    runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
-        include:
-          - target: x86_64-pc-windows-gnu
-            os: ubuntu-latest
-            ext: .exe
-            cross: true
-          - target: x86_64-pc-windows-msvc
-            os: windows-latest
-            ext: .exe
-            cross: false
-          - target: i686-pc-windows-msvc
-            os: windows-latest
-            ext: .exe
-            cross: false
-          - target: i686-pc-windows-gnu
-            os: ubuntu-latest
-            ext: .exe
-            cross: true
-          - target: aarch64-pc-windows-msvc
-            os: windows-latest
-            ext: .exe
-            cross: false
-          - target: x86_64-unknown-linux-gnu
-            os: ubuntu-latest
-            ext: ""
-            cross: false
-          - target: i686-unknown-linux-gnu
-            os: ubuntu-latest
-            ext: ""
-            cross: true
-          - target: aarch64-unknown-linux-gnu
-            os: ubuntu-latest
-            ext: ""
-            cross: true
-          - target: arm-unknown-linux-gnueabi
-            os: ubuntu-latest
-            ext: ""
-            cross: true
-          - target: arm-unknown-linux-gnueabihf
-            os: ubuntu-latest
-            ext: ""
-            cross: true
-          - target: armv7-unknown-linux-gnueabihf
-            os: ubuntu-latest
-            ext: ""
-            cross: true
-          - target: armv7-unknown-linux-ohos
-            os: ubuntu-latest
-            ext: ""
-            cross: true
-          - target: loongarch64-unknown-linux-gnu
-            os: ubuntu-latest
-            ext: ""
-            cross: true
-          - target: loongarch64-unknown-linux-musl
-            os: ubuntu-latest
-            ext: ""
-            cross: true
-          - target: powerpc-unknown-linux-gnu
-            os: ubuntu-latest
-            ext: ""
-            cross: true
-          - target: riscv64gc-unknown-linux-gnu
-            os: ubuntu-latest
-            ext: ""
-            cross: true
-          - target: x86_64-unknown-freebsd
-            os: ubuntu-latest
-            ext: ""
-            cross: true
-          - target: x86_64-unknown-illumos
-            os: ubuntu-latest
-            ext: ""
-            cross: true
-          - target: x86_64-unknown-linux-musl
-            os: ubuntu-latest
-            ext: ""
-            cross: true
-          - target: x86_64-unknown-linux-ohos
-            os: ubuntu-latest
-            ext: ""
-            cross: true
-          - target: x86_64-unknown-netbsd
-            os: ubuntu-latest
-            ext: ""
-            cross: true
-          - target: x86_64-pc-solaris
-            os: ubuntu-latest
-            ext: ""
-            cross: true
-          - target: sparcv9-sun-solaris
-            os: ubuntu-latest
-            ext: ""
-            cross: true
+        target:
+          - x86_64-pc-windows-gnu
+          - x86_64-pc-windows-msvc
+          - i686-pc-windows-msvc
+          - i686-pc-windows-gnu
+          - aarch64-pc-windows-msvc
+          - x86_64-unknown-linux-gnu
+          - i686-unknown-linux-gnu
+          - aarch64-unknown-linux-gnu
+          - arm-unknown-linux-gnueabi
+          - arm-unknown-linux-gnueabihf
+          - armv7-unknown-linux-gnueabihf
+          - armv7-unknown-linux-ohos
+          - loongarch64-unknown-linux-gnu
+          - loongarch64-unknown-linux-musl
+          - powerpc-unknown-linux-gnu
+          - riscv64gc-unknown-linux-gnu
+          - x86_64-unknown-freebsd
+          - x86_64-unknown-illumos
+          - x86_64-unknown-linux-musl
+          - x86_64-unknown-linux-ohos
+          - x86_64-unknown-netbsd
+          - x86_64-pc-solaris
+          - sparcv9-sun-solaris
 
     steps:
       - name: Checkout
@@ -122,95 +55,26 @@ jobs:
       - name: Caching
         uses: Swatinem/rust-cache@v2
 
-      - name: Crosscomp
-        if: matrix.os == 'ubuntu-latest' && matrix.cross == true
+      - name: Install cross
+        run: cargo install cross
+
+      - name: Build with cross
         run: |
-          sudo apt-get update
-          for pkg in \
-              binutils-multiarch \
-              qemu-user-static \
-              binfmt-support \
-              gcc-aarch64-linux-gnu \
-              gcc-arm-linux-gnueabi \
-              gcc-arm-linux-gnueabihf \
-              gcc-i686-linux-gnu \
-              gcc-mips-linux-gnu \
-              gcc-mipsel-linux-gnu \
-              gcc-mips64-linux-gnuabi64 \
-              gcc-powerpc-linux-gnu \
-              gcc-riscv64-linux-gnu \
-              gcc-s390x-linux-gnu \
-              gcc-sparc64-linux-gnu \
-              libc6-dev-arm64-cross \
-              libc6-dev-armel-cross \
-              libc6-dev-armhf-cross \
-              libc6-dev-i386-cross \
-              libc6-dev-mips-cross \
-              libc6-dev-mipsel-cross \
-              libc6-dev-mips64-cross \
-              libc6-dev-powerpc-cross \
-              libc6-dev-ppc64-cross \
-              libc6-dev-riscv64-cross \
-              libc6-dev-s390x-cross \
-              libc6-dev-sparc64-cross \
-              gcc-mingw-w64-x86-64 \
-              gcc-mingw-w64-i686 \
-              freebsd-glue \
-              curl \
-              libcurl-devel \
-              libcurl4-openssl-dev \
-              gcc-multilib \
-              g++-multilib \
-              libc6-dev-i386 \
-              libc6-dev-i386-cross \
-              linux-libc-dev:i386 \
-              gcc-14-loongarch64-linux-gnu \
-              binutils-loongarch64-linux-gnu \
-              libunwind-dev \
-              musl-tools \
-              musl-dev \
-              cmake \
-              ninja-build; do
-              sudo apt-get install -y "$pkg" || true
-          done
-
-      - name: MSVC
-        if: matrix.os == 'windows-latest' && contains(matrix.target, 'msvc')
-        uses: ilammy/msvc-dev-cmd@v1
-
-      - name: Targets
-        run: rustup target add ${{ matrix.target }}
-
-      - name: Release
-        run: cargo build --release --target ${{ matrix.target }}
-        env:
-          RUST_BACKTRACE: 1
+          cross build --release
 
       - name: Bin copy
         run: |
           mkdir -p dist
-          TAG_NAME="${{ github.event.release.tag_name }}"
-          if [ -z "$TAG_NAME" ]; then
-            TAG_NAME="${{ github.event.inputs.tag_name }}"
-          fi
-          if [ -z "$TAG_NAME" ]; then
-            TAG_NAME="latest"
-          fi
-          TARGET_SANITIZED=$(echo "${{ matrix.target }}" | sed 's/-unknown//g' | sed 's/-pc//g' | tr '-' '_')
-          if [[ "${{ matrix.target }}" == *"windows"* ]] || [[ "${{ matrix.target }}" == *"msvc"* ]] || [[ "${{ matrix.target }}" == *"gnu"* && "${{ matrix.ext }}" == ".exe" ]]; then
-            cp "./target/${{ matrix.target }}/release/waterfall.exe" "./dist/waterfall-${TAG_NAME}-${TARGET_SANITIZED}${{ matrix.ext }}"
-          else
-            cp "./target/${{ matrix.target }}/release/waterfall" "./dist/waterfall-${TAG_NAME}-${TARGET_SANITIZED}${{ matrix.ext }}"
-          fi
-        shell: bash
 
-      - name: dist upload
-        if: github.event_name == 'release'
-        uses: softprops/action-gh-release@v2
-        with:
-          files: dist/*
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TARGET=$(echo "${{ matrix.target }}" | sed 's/-unknown//g' | sed 's/-pc//g' | tr '-' '_')
+          FINISH=""
+          if [[ "${{ matrix.target }}" == *"windows"* ]]; then
+            FINISH=".exe"
+          fi
+
+          if [ -f "./target/${{ matrix.target }}/release/waterfall$FINISH" ]; then
+            cp "./target/${{ matrix.target }}/release/waterfall$FINISH" "./dist/waterfall-${TARGET}$FINISH"
+          fi
 
       - name: Artifacts
         uses: actions/upload-artifact@v4
@@ -242,12 +106,15 @@ jobs:
         run: |
           mkdir -p dist
           find artifacts -type f -name "waterfall-*" -exec cp {} dist/ \;
+
       - name: D
         run: |
-          tar -cvf waterfall-builds.tar dist
+          tar -cvf waterfall-builds.tar dist/
           rm -rf dist/
+
           git config --local user.email "qulsar@nicemail.i2p"
-          git config --local user.name "Qulsar Bot"
+          git config --local user.name "Qulsar"
           git add waterfall-builds.tar
-          git commit -m "Dist update"
-          git push
+          git commit -m "Dist update [skip ci]" || true
+          git pull --rebase origin ${{ github.ref_name }} || true
+          git push || true
