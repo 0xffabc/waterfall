@@ -121,18 +121,19 @@ impl SocketOps {
             ..
         } = parse_args().socket_options;
 
+        Self::cutoff_options(socket.try_clone().unwrap(), so_opt_cutoff);
+
+        socket.connect(&addr.into())?;
+
+        socket.set_nonblocking(true)?;
         socket.set_recv_buffer_size(so_recv_size)?;
         socket.set_send_buffer_size(so_send_size)?;
         socket.set_nodelay(true)?;
         socket.set_keepalive(true)?;
 
-        Self::cutoff_options(socket.try_clone().unwrap(), so_opt_cutoff);
-
         if domain_type == Domain::IPV6 {
             socket.set_only_v6(false)?;
         }
-
-        socket.connect(&addr.into())?;
 
         let tcp_stream: std::net::TcpStream = socket.into();
 

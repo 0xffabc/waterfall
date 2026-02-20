@@ -316,6 +316,8 @@ async fn main() -> Result<()> {
     for stream in listener.incoming() {
         let client = stream?;
 
+        client.set_nonblocking(true)?;
+
         tokio::spawn(async move {
             let _ = socks::socks5_proxy(tokio::net::TcpStream::from_std(client).unwrap()).await;
         });
