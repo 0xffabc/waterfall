@@ -190,7 +190,7 @@ pub mod utils {
 
     #[cfg(unix)]
     pub fn disable_sack(socket: &TcpStream) {
-        use libc::{setsockopt, IPPROTO_TCP};
+        use libc::setsockopt;
         use std::os::unix::io::AsRawFd;
 
         let fd = socket.as_raw_fd();
