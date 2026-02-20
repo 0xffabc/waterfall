@@ -1,0 +1,193 @@
+name: Waterfall on-release build
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      tag_name:
+        description: 'Release tag'
+        required: false
+
+jobs:
+  build:
+    name: Build waterfall for ${{ matrix.target }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - target: x86_64-pc-windows-gnu
+            os: ubuntu-latest
+            ext: .exe
+            cross: true
+          - target: x86_64-pc-windows-msvc
+            os: windows-latest
+            ext: .exe
+            cross: false
+          - target: i686-pc-windows-msvc
+            os: windows-latest
+            ext: .exe
+            cross: false
+          - target: i686-pc-windows-gnu
+            os: ubuntu-latest
+            ext: .exe
+            cross: true
+          - target: aarch64-pc-windows-msvc
+            os: windows-latest
+            ext: .exe
+            cross: false
+          - target: x86_64-unknown-linux-gnu
+            os: ubuntu-latest
+            ext: ""
+            cross: false
+          - target: i686-unknown-linux-gnu
+            os: ubuntu-latest
+            ext: ""
+            cross: true
+          - target: aarch64-unknown-linux-gnu
+            os: ubuntu-latest
+            ext: ""
+            cross: true
+          - target: arm-unknown-linux-gnueabi
+            os: ubuntu-latest
+            ext: ""
+            cross: true
+          - target: arm-unknown-linux-gnueabihf
+            os: ubuntu-latest
+            ext: ""
+            cross: true
+          - target: armv7-unknown-linux-gnueabihf
+            os: ubuntu-latest
+            ext: ""
+            cross: true
+          - target: armv7-unknown-linux-ohos
+            os: ubuntu-latest
+            ext: ""
+            cross: true
+          - target: loongarch64-unknown-linux-gnu
+            os: ubuntu-latest
+            ext: ""
+            cross: true
+          - target: loongarch64-unknown-linux-musl
+            os: ubuntu-latest
+            ext: ""
+            cross: true
+          - target: powerpc-unknown-linux-gnu
+            os: ubuntu-latest
+            ext: ""
+            cross: true
+          - target: riscv64gc-unknown-linux-gnu
+            os: ubuntu-latest
+            ext: ""
+            cross: true
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.PAT }}
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+
+      - name: Caching
+        uses: Swatinem/rust-cache@v2
+
+      - name: Crosscomp
+        if: matrix.os == 'ubuntu-latest' && matrix.cross == true
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            gcc-mingw-w64 \
+            gcc-arm-linux-gnueabi \
+            gcc-arm-linux-gnueabihf \
+            gcc-aarch64-linux-gnu \
+            gcc-riscv64-linux-gnu \
+            gcc-powerpc-linux-gnu \
+            gcc-i686-linux-gnu \
+            qemu-user-static \
+            binutils-multiarch
+
+      - name: MSVC
+        if: matrix.os == 'windows-latest' && contains(matrix.target, 'msvc')
+        uses: ilammy/msvc-dev-cmd@v1
+
+      - name: Targets
+        run: rustup target add ${{ matrix.target }}
+
+      - name: Release
+        run: cargo build --release --target ${{ matrix.target }}
+        env:
+          RUST_BACKTRACE: 1
+
+      - name: Bin copy
+        run: |
+          mkdir -p dist
+          TAG_NAME="${{ github.event.release.tag_name }}"
+          if [ -z "$TAG_NAME" ]; then
+            TAG_NAME="${{ github.event.inputs.tag_name }}"
+          fi
+          if [ -z "$TAG_NAME" ]; then
+            TAG_NAME="latest"
+          fi
+          TARGET_SANITIZED=$(echo "${{ matrix.target }}" | sed 's/-unknown//g' | sed 's/-pc//g' | tr '-' '_')
+          if [[ "${{ matrix.target }}" == *"windows"* ]] || [[ "${{ matrix.target }}" == *"msvc"* ]] || [[ "${{ matrix.target }}" == *"gnu"* && "${{ matrix.ext }}" == ".exe" ]]; then
+            cp "./target/${{ matrix.target }}/release/waterfall.exe" "./dist/waterfall-${TAG_NAME}-${TARGET_SANITIZED}${{ matrix.ext }}"
+          else
+            cp "./target/${{ matrix.target }}/release/waterfall" "./dist/waterfall-${TAG_NAME}-${TARGET_SANITIZED}${{ matrix.ext }}"
+          fi
+        shell: bash
+
+      - name: dist upload
+        if: github.event_name == 'release'
+        uses: softprops/action-gh-release@v2
+        with:
+          files: dist/*
+        env:
+          GITHUB_TOKEN: ${{ secrets.PAT }}
+
+      - name: Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: waterfall-${{ matrix.target }}
+          path: dist/*
+          retention-days: 30
+
+  commit-dist:
+    name: Commit dist folder
+    needs: build
+    runs-on: ubuntu-latest
+    if: always()
+    permissions:
+      contents: write
+    steps:
+      - name: A
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.PAT }}
+          fetch-depth: 0
+
+      - name: B
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
+      - name: C
+        run: |
+          mkdir -p dist
+          find artifacts -type f -name "waterfall-*" -exec cp {} dist/ \;
+      - name: D
+        run: |
+          git config --local user.email "qulsar@nicemail.i2p"
+          git config --local user.name "Qulsar"
+          git add dist/
+          if ! git diff --staged --quiet; then
+            git commit -m "Update dist"
+            git pull --rebase origin ${{ github.ref_name }}
+            git push origin ${{ github.ref_name }}
+          else
+            echo "No changes to commit"
+          fi
