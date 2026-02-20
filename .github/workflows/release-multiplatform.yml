@@ -60,7 +60,7 @@ jobs:
 
       - name: Build with cross
         run: |
-          cross build --release
+          cross build --release --target ${{ matrix.target }}
 
       - name: Bin copy
         run: |
