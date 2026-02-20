@@ -1,5 +1,3 @@
-name: Waterfall on-release build
-
 on:
   release:
     types: [published]
@@ -128,94 +126,43 @@ jobs:
         if: matrix.os == 'ubuntu-latest' && matrix.cross == true
         run: |
           sudo apt-get update
-          sudo apt-get install -y \
-            gcc-mingw-w64-x86-64 \
-            gcc-mingw-w64-i686 \
-            gcc-arm-linux-gnueabi \
-            gcc-arm-linux-gnueabihf \
-            gcc-aarch64-linux-gnu \
-            gcc-riscv64-linux-gnu \
-            gcc-powerpc-linux-gnu \
-            gcc-powerpc64-linux-gnu \
-            gcc-powerpc64le-linux-gnu \
-            gcc-i686-linux-gnu \
-            gcc-mips-linux-gnu \
-            gcc-mipsel-linux-gnu \
-            gcc-mips64-linux-gnuabi64 \
-            gcc-mips64el-linux-gnuabi64 \
-            gcc-sparc64-linux-gnu \
-            gcc-s390x-linux-gnu \
-            libc6-dev-armel-cross \
-            libc6-dev-armhf-cross \
-            libc6-dev-arm64-cross \
-            libc6-dev-i386-cross \
-            libc6-dev-mips-cross \
-            libc6-dev-mipsel-cross \
-            libc6-dev-mips64-cross \
-            libc6-dev-mips64el-cross \
-            libc6-dev-ppc64-cross \
-            libc6-dev-ppc64el-cross \
-            libc6-dev-riscv64-cross \
-            libc6-dev-s390x-cross \
-            libc6-dev-sparc64-cross \
-            libc6-dev-i386 \
-            libc6-dev-amd64-cross \
-            linux-libc-dev-mips-cross \
-            linux-libc-dev-mipsel-cross \
-            linux-libc-dev-mips64-cross \
-            linux-libc-dev-armel-cross \
-            linux-libc-dev-armhf-cross \
-            linux-libc-dev-arm64-cross \
-            musl-tools \
-            musl-dev \
-            llvm-dev \
-            libclang-dev \
-            clang \
-            qemu-user-static \
-            binutils-multiarch \
-            binfmt-support \
-            gcc-multilib \
-            g++-multilib \
-            libc6-dev-i386 \
-            libc6-dev-amd64-i386-cross \
-            libc6-dev-i386-amd64-cross \
-            freebsd-glue \
-            golang-go \
-            upx \
-            || true
+          for pkg in \
+              binutils-multiarch \
+              qemu-user-static \
+              binfmt-support \
+              gcc-aarch64-linux-gnu \
+              gcc-arm-linux-gnueabi \
+              gcc-arm-linux-gnueabihf \
+              gcc-i686-linux-gnu \
+              gcc-mips-linux-gnu \
+              gcc-mipsel-linux-gnu \
+              gcc-mips64-linux-gnuabi64 \
+              gcc-powerpc-linux-gnu \
+              gcc-riscv64-linux-gnu \
+              gcc-s390x-linux-gnu \
+              gcc-sparc64-linux-gnu \
+              libc6-dev-arm64-cross \
+              libc6-dev-armel-cross \
+              libc6-dev-armhf-cross \
+              libc6-dev-i386-cross \
+              libc6-dev-mips-cross \
+              libc6-dev-mipsel-cross \
+              libc6-dev-mips64-cross \
+              libc6-dev-powerpc-cross \
+              libc6-dev-ppc64-cross \
+              libc6-dev-riscv64-cross \
+              libc6-dev-s390x-cross \
+              libc6-dev-sparc64-cross \
+              gcc-mingw-w64-x86-64 \
+              gcc-mingw-w64-i686 \
+              freebsd-glue \
+              musl-tools \
+              musl-dev \
+              cmake \
+              ninja-build; do
+              sudo apt-get install -y "$pkg" || true
+          done
 
-          mkdir -p ~/.cargo
-          case "${{ matrix.target }}" in
-            *-linux-gnu*)
-              echo "[target.${{ matrix.target }}]" >> ~/.cargo/config.toml
-              echo "linker = \"${{ matrix.target }}-gcc\"" >> ~/.cargo/config.toml
-              ;;
-            *-linux-musl*)
-              echo "[target.${{ matrix.target }}]" >> ~/.cargo/config.toml
-              echo "linker = \"musl-gcc\"" >> ~/.cargo/config.toml
-              ;;
-            *-freebsd*)
-              echo "[target.${{ matrix.target }}]" >> ~/.cargo/config.toml
-              echo "linker = \"x86_64-unknown-freebsd12-gcc\"" >> ~/.cargo/config.toml
-              ;;
-            *-solaris* | *-illumos*)
-              echo "[target.${{ matrix.target }}]" >> ~/.cargo/config.toml
-              echo "linker = \"gcc\"" >> ~/.cargo/config.toml
-              echo "rustflags = [\"-C\", \"link-arg=-Wl,-z,ignore\"]" >> ~/.cargo/config.toml
-              ;;
-          esac
-          if [[ "${{ matrix.target }}" == *"loongarch64"* ]] || \
-             [[ "${{ matrix.target }}" == *"sparc"* ]] || \
-             [[ "${{ matrix.target }}" == *"ohos"* ]]; then
-            cargo install cross
-            echo "CROSS_RS=1" >> $GITHUB_ENV
-          fi
-          echo "CARGO_TARGET_$(echo ${{ matrix.target }} | tr '[:lower:]' '[:upper:]' | tr '-' '_')_LINKER=${{ matrix.target }}-gcc" >> $GITHUB_ENV
-          echo "PKG_CONFIG_ALLOW_CROSS=1" >> $GITHUB_ENV
-          echo "RUSTFLAGS=-C linker=${{ matrix.target }}-gcc" >> $GITHUB_ENV
-          if [[ "${{ matrix.target }}" == *"musl"* ]]; then
-            echo "RUSTFLAGS=-C target-feature=+crt-static -C linker=musl-gcc" >> $GITHUB_ENV
-          fi
       - name: MSVC
         if: matrix.os == 'windows-latest' && contains(matrix.target, 'msvc')
         uses: ilammy/msvc-dev-cmd@v1
@@ -224,12 +171,7 @@ jobs:
         run: rustup target add ${{ matrix.target }}
 
       - name: Release
-        run: |
-          if [ "$CROSS_RS" = "1" ]; then
-            cross build --release --target ${{ matrix.target }}
-          else
-            cargo build --release --target ${{ matrix.target }}
-          fi
+        run: cargo build --release --target ${{ matrix.target }}
         env:
           RUST_BACKTRACE: 1
 
@@ -294,7 +236,7 @@ jobs:
           tar -cvf waterfall-builds.tar dist
           rm -rf dist/
           git config --local user.email "qulsar@nicemail.i2p"
-          git config --local user.name "Qulsar"
+          git config --local user.name "Qulsar Bot"
           git add waterfall-builds.tar
           git commit -m "Dist update"
           git push
