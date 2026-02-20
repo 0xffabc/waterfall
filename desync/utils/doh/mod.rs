@@ -1,12 +1,70 @@
-use curl::easy::Easy;
+use std::sync::OnceLock;
 
-use crate::{core::parse_args, desync::utils::ip::IpUtils};
+use crate::{
+    core::parse_args,
+    desync::utils::doh::parser::{create_queries, parse_dns_response},
+};
+
+use ureq;
+
+static DNS_SERVERS: OnceLock<Vec<String>> = OnceLock::new();
+
+pub async fn test_dns_servers() {
+    let servers = [
+        "https://cloudflare-dns.com/dns-query?dns={}",
+        "https://mozilla.cloudflare-dns.com/dns-query?dns={}",
+        "https://dns.google/dns-query?dns={}",
+        "https://dns.quad9.net/dns-query?dns={}",
+        "https://freedns.controld.com/p0?dns={}",
+    ];
+
+    let mut working_servers = vec![];
+
+    for server in servers {
+        let query = create_queries("discord.com").unwrap()[0].clone();
+
+        let result = DOHResolver::resolve_with(server, query).await;
+
+        match result {
+            Ok(_) => {
+                info!("[OK] {server} passed the test");
+
+                working_servers.push(server.to_string());
+            }
+
+            Err(err) => {
+                error!("DNS resolver test error: {err}");
+            }
+        }
+    }
+
+    DNS_SERVERS.set(working_servers).unwrap();
+}
 
 use anyhow::{anyhow, Result};
 
 pub struct DOHResolver();
 
+pub mod parser;
+
 impl DOHResolver {
+    async fn resolve_with(dns_server: &str, data: String) -> Result<Vec<u8>> {
+        let url = dns_server.replace("{}", &data);
+
+        let result = tokio::task::spawn_blocking(move || {
+            let bytes = ureq::get(&url)
+                .header("accept", "application/dns-message")
+                .call()?
+                .body_mut()
+                .read_to_vec()?;
+
+            Ok::<Vec<u8>, anyhow::Error>(bytes)
+        })
+        .await??;
+
+        Ok(result)
+    }
+
     pub async fn doh_resolver(domain: String) -> Result<String> {
         let config = parse_args();
 
@@ -24,37 +82,38 @@ impl DOHResolver {
             };
         }
 
-        let result: anyhow::Result<Vec<u8>> = tokio::task::spawn_blocking(move || {
-            let cf_dns: &str = "https://dns.google/resolve?name={}&type=A";
+        let queries = create_queries(&domain)?;
+        let mut tasks = vec![];
 
-            let mut easy = Easy::new();
-            let mut response_data = Vec::new();
+        for dns in DNS_SERVERS
+            .get()
+            .ok_or(anyhow!("DNS_SERVERS aren't initialized yet"))?
+        {
+            for query in queries.clone() {
+                let task = Self::resolve_with(dns, query);
 
-            easy.url(&cf_dns.replace("{}", &domain))?;
+                tasks.push(task);
+            }
+        }
 
-            easy.http_headers({
-                let mut headers = curl::easy::List::new();
-                headers.append("accept: application/dns-json")?;
+        let (result, _, _) = futures::future::select_all(
+            tasks
+                .into_iter()
+                .map(|task| {
+                    Box::pin(async move {
+                        match task.await {
+                            Ok(value) => Some(value),
+                            Err(_) => None,
+                        }
+                    })
+                })
+                .collect::<Vec<_>>(),
+        )
+        .await;
 
-                headers
-            })?;
+        let response =
+            parse_dns_response(result.ok_or(anyhow!("Failed to parse message"))?.as_slice())?;
 
-            let mut transfer = easy.transfer();
-
-            transfer.write_function(|data| {
-                response_data.extend_from_slice(data);
-
-                Ok(data.len())
-            })?;
-
-            transfer.perform()?;
-
-            drop(transfer);
-
-            return Ok(response_data);
-        })
-        .await?;
-
-        Ok(IpUtils::find_ip(result?).ok_or(anyhow!("No IP"))?)
+        Ok(response.to_string().replace(":443", ""))
     }
 }

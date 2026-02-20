@@ -34,16 +34,25 @@ impl Router {
     ) -> RouterInterjectionStatus {
         match rule_type {
             RouterRuleType::FakeDNS => {
-                let vec: Vec<u8> = exec.split('.').map(|n| {
-                    n.parse::<u8>()
-                        .expect("Failed to parse requested FakeDNS integer as u8. Make sure the address is an actual IPv4.")
-                }).collect();
+                let is_ipv6 = exec.contains(':') && !exec.contains('.');
+
+                let vec: Vec<u8> = if is_ipv6 {
+                    let addr = exec.parse::<std::net::Ipv6Addr>()
+                        .expect("Failed to parse requested IPv6 address. Make sure the address is an actual IPv6.");
+
+                    addr.octets().to_vec()
+                } else {
+                    exec.split('.').map(|n| {
+                        n.parse::<u8>()
+                            .expect("Failed to parse requested FakeDNS integer as u8. Make sure the address is an actual IPv4.")
+                    }).collect()
+                };
 
                 RouterInterjectionStatus::AutoResolved(IpParser {
                     host_raw: vec.clone(),
                     host_unprocessed: host_unprocessed,
                     port: 443,
-                    dest_addr_type: 3,
+                    dest_addr_type: if is_ipv6 { 4 } else { 3 },
                     is_udp: false,
                 })
             }

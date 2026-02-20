@@ -12,8 +12,6 @@ pub struct IpParser {
     pub is_udp: bool,
 }
 
-pub struct IpUtils();
-
 impl IpParser {
     #[allow(mismatched_lifetime_syntaxes)]
     pub async fn parse<'b>(buffer: &'b [u8]) -> Result<IpParser> {
@@ -126,54 +124,5 @@ impl IpParser {
                 is_udp,
             }),
         }
-    }
-}
-
-impl IpUtils {
-    pub fn find_ip(data: Vec<u8>) -> Option<String> {
-        String::from_utf8(data)
-            .map_err(|_| ())
-            .and_then(|text| {
-                let mut digits = 0;
-                let mut dots = 0;
-                let mut start = None;
-
-                for (i, c) in text.char_indices() {
-                    match c {
-                        '0'..='9' => {
-                            if start.is_none() {
-                                start = Some(i);
-                            }
-                            digits += 1;
-
-                            if i == text.len() - 1 && dots == 3 && digits > 0 {
-                                return Ok(text[start.unwrap()..=i].to_string());
-                            }
-                        }
-                        '.' if digits > 0 => {
-                            dots += 1;
-                            digits = 0;
-
-                            if dots > 3 {
-                                digits = 0;
-                                dots = 0;
-                                start = None;
-                            }
-                        }
-                        _ => {
-                            if dots == 3 && digits > 0 {
-                                return Ok(text[start.unwrap()..i].to_string());
-                            }
-
-                            digits = 0;
-                            dots = 0;
-                            start = None;
-                        }
-                    }
-                }
-
-                Err(())
-            })
-            .ok()
     }
 }

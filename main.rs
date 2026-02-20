@@ -15,6 +15,7 @@ use crate::desync::oob::{Oob, OobD, OobStream};
 use crate::desync::split::Split;
 use crate::desync::strategy_core::StrategyExecutor;
 use crate::desync::strategy_core::*;
+use crate::desync::utils::doh::test_dns_servers;
 use crate::desync::utils::random::make_random_vec;
 use crate::desync::utils::random::Random;
 use crate::desync::utils::sni::Sni;
@@ -262,7 +263,7 @@ extern crate log;
 #[tokio::main(flavor = "multi_thread", worker_threads = 12)]
 async fn main() -> Result<()> {
     unsafe {
-        std::env::set_var("RUST_LOG", "trace");
+        std::env::set_var("RUST_LOG", "INFO");
     }
 
     tokio::spawn(async {
@@ -274,6 +275,8 @@ async fn main() -> Result<()> {
     pretty_env_logger::init_timed();
 
     info!("Waterfall is starting");
+
+    test_dns_servers().await;
 
     let config: AuxConfig = core::parse_args();
 
