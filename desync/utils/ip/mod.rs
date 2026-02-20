@@ -21,6 +21,8 @@ impl IpParser {
         match dest_addr_type {
             1 => {
                 if buffer.len() < 10 {
+                    warn!("Buffer length for IPv4 is less than 10...");
+
                     return Ok(IpParser {
                         dest_addr_type,
                         host_raw: vec![0, 0, 0, 0],
@@ -42,6 +44,8 @@ impl IpParser {
                 let domain_length = buffer[4] as usize;
 
                 if 6 + domain_length >= buffer.len() {
+                    warn!("Domain length {domain_length} is more than lowest buffer length without header {}...", buffer.len() - 6);
+
                     return Ok(IpParser {
                         dest_addr_type,
                         host_raw: vec![0, 0, 0, 0],
@@ -71,20 +75,26 @@ impl IpParser {
                         });
                     }
 
-                    if let Ok(ip) = DOHResolver::doh_resolver(domain_str.to_string()).await {
-                        if let Ok(ip_addr) = ip.parse::<IpAddr>() {
-                            let ip_buffer = match ip_addr {
-                                IpAddr::V4(ip) => ip.octets().to_vec(),
-                                IpAddr::V6(ip) => ip.octets().to_vec(),
-                            };
+                    match DOHResolver::doh_resolver(domain_str.to_string()).await {
+                        Ok(ip) => {
+                            if let Ok(ip_addr) = ip.parse::<IpAddr>() {
+                                let ip_buffer = match ip_addr {
+                                    IpAddr::V4(ip) => ip.octets().to_vec(),
+                                    IpAddr::V6(ip) => ip.octets().to_vec(),
+                                };
 
-                            return Ok(IpParser {
-                                dest_addr_type,
-                                host_raw: ip_buffer,
-                                host_unprocessed: domain.to_vec(),
-                                port,
-                                is_udp,
-                            });
+                                return Ok(IpParser {
+                                    dest_addr_type,
+                                    host_raw: ip_buffer,
+                                    host_unprocessed: domain.to_vec(),
+                                    port,
+                                    is_udp,
+                                });
+                            }
+                        }
+
+                        Err(error) => {
+                            error!("DoH resolver error: {error}");
                         }
                     }
                 }
@@ -116,13 +126,7 @@ impl IpParser {
                     is_udp,
                 })
             }
-            _ => Ok(IpParser {
-                dest_addr_type,
-                host_raw: [0, 0, 0, 0].to_vec(),
-                host_unprocessed: vec![0, 0, 0, 0],
-                port: 0,
-                is_udp,
-            }),
+            _ => panic!("Waterfall got an unsupported SOCKS5 dest type: {dest_addr_type}"),
         }
     }
 }

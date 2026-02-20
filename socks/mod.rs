@@ -95,7 +95,7 @@ pub async fn socks5_proxy(mut client: TcpStream) -> Result<()> {
             });
         }
         Err(error) => {
-            error!("Connection aborted: {error}");
+            error!("Connection aborted: {error} with an address {sock_addr}");
         }
     }
 

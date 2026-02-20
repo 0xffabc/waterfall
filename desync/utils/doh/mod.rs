@@ -10,26 +10,22 @@ use ureq;
 static DNS_SERVERS: OnceLock<Vec<String>> = OnceLock::new();
 
 pub async fn test_dns_servers() {
-    let servers = [
-        "https://cloudflare-dns.com/dns-query?dns={}",
-        "https://mozilla.cloudflare-dns.com/dns-query?dns={}",
-        "https://dns.google/dns-query?dns={}",
-        "https://dns.quad9.net/dns-query?dns={}",
-        "https://freedns.controld.com/p0?dns={}",
-    ];
+    let config = parse_args();
+
+    let servers = config.dns_options.doh_servers;
 
     let mut working_servers = vec![];
 
     for server in servers {
         let query = create_queries("discord.com").unwrap()[0].clone();
 
-        let result = DOHResolver::resolve_with(server, query).await;
+        let result = DOHResolver::resolve_with(&server.url, query).await;
 
         match result {
             Ok(_) => {
-                info!("[OK] {server} passed the test");
+                info!("[OK] {server:?} passed the test");
 
-                working_servers.push(server.to_string());
+                working_servers.push(server.url);
             }
 
             Err(err) => {
@@ -74,10 +70,8 @@ impl DOHResolver {
             match addrs.next() {
                 Some(n) => {
                     warn!("The ISP will see that you've accessed {domain} -> {n}");
-
                     return Ok(n.to_string().replace(":443", ""));
                 }
-
                 None => error!("No addresses for {domain} from system DNS"),
             };
         }
@@ -96,24 +90,33 @@ impl DOHResolver {
             }
         }
 
-        let (result, _, _) = futures::future::select_all(
-            tasks
-                .into_iter()
-                .map(|task| {
-                    Box::pin(async move {
-                        match task.await {
-                            Ok(value) => Some(value),
+        let mut tasks: Vec<_> = tasks
+            .into_iter()
+            .map(|task| {
+                Box::pin(async move {
+                    match task.await {
+                        Ok(bytes) => match parse_dns_response(&bytes) {
+                            Ok(addr) => Some(addr.ip().to_string()),
                             Err(_) => None,
-                        }
-                    })
+                        },
+                        Err(_) => None,
+                    }
                 })
-                .collect::<Vec<_>>(),
-        )
-        .await;
+            })
+            .collect();
 
-        let response =
-            parse_dns_response(result.ok_or(anyhow!("Failed to parse message"))?.as_slice())?;
+        while !tasks.is_empty() {
+            let (result, _index, remaining) = futures::future::select_all(tasks).await;
 
-        Ok(response.to_string().replace(":443", ""))
+            if let Some(ip) = result {
+                return Ok(ip);
+            }
+
+            tasks = remaining;
+        }
+
+        Err(anyhow!(
+            "Every DNS query was failed for {domain}. Consider creating a FakeDNS record manually."
+        ))
     }
 }

@@ -189,6 +189,12 @@ pub struct AuxConfig {
 }
 
 #[derive(Debug, Clone, Deserialize, PartialEq, Serialize)]
+pub struct DohServer {
+    #[serde(rename = "@url")]
+    pub url: String,
+}
+
+#[derive(Debug, Clone, Deserialize, PartialEq, Serialize)]
 #[serde(rename_all = "kebab-case", deny_unknown_fields)]
 pub struct DnsOptions {
     #[serde(
@@ -196,6 +202,8 @@ pub struct DnsOptions {
         rename = "@integrated_doh_enabled"
     )]
     pub integrated_doh_enabled: bool,
+    #[serde(default = "default_doh_servers")]
+    pub doh_servers: Vec<DohServer>,
 }
 
 impl Default for AuxConfig {
@@ -211,6 +219,23 @@ impl Default for AuxConfig {
             },
             dns_options: DnsOptions {
                 integrated_doh_enabled: default_integrated_doh_enabled(),
+                doh_servers: vec![
+                    DohServer {
+                        url: "https://cloudflare-dns.com/dns-query?dns={}".to_string(),
+                    },
+                    DohServer {
+                        url: "https://mozilla.cloudflare-dns.com/dns-query?dns={}".to_string(),
+                    },
+                    DohServer {
+                        url: "https://dns.google/dns-query?dns={}".to_string(),
+                    },
+                    DohServer {
+                        url: "https://dns.quad9.net/dns-query?dns={}".to_string(),
+                    },
+                    DohServer {
+                        url: "https://freedns.controld.com/p0?dns={}".to_string(),
+                    },
+                ],
             },
             fake_packet_options: FakePacketOptions {
                 fake_packet_ttl: default_fake_packet_ttl(),
@@ -400,5 +425,9 @@ fn default_patterns() -> Vec<PatternRule> {
 }
 
 fn default_rules() -> Vec<RouterRule> {
+    vec![]
+}
+
+fn default_doh_servers() -> Vec<DohServer> {
     vec![]
 }
