@@ -95,12 +95,16 @@ pub mod utils {
                     fd,
                     (&data.as_slice()).as_ptr() as *const _,
                     1,
-                    if conf.fake_as_oob { MSG_OOB } else { 0 },
+                    if conf.fake_packet_options.fake_as_oob {
+                        MSG_OOB
+                    } else {
+                        0
+                    },
                 );
             };
         }
 
-        let _ = set_ttl_raw(&socket, conf.default_ttl.into());
+        let _ = set_ttl_raw(&socket, conf.desync_options.default_ttl.into());
     }
 
     #[cfg(windows)]
