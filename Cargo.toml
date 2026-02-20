@@ -7,14 +7,10 @@ edition = "2021"
 anyhow = "1.0.101"
 base64 = "0.22.1"
 clap = { version = "4.5.59", features = ["derive"] }
-curl = "0.4.49"
-document-features = "0.2.12"
 futures = "0.3.32"
 glob = "0.3.3"
 iprobe = "0.1.1"
-libc = "0.2.169"
 log = "0.4.29"
-notify = "8.2.0"
 pretty_env_logger = "0.5.0"
 quick-xml = { version = "0.39.1", features = ["serialize"] }
 rusdig = "0.2.3"
@@ -22,7 +18,16 @@ serde = { version = "1.0.228", features = ["derive"] }
 socket2 = "0.5.9"
 socket2-ext = "0.1.1"
 tokio = { version = "1.49.0", features = ["rt", "net", "macros", "rt-multi-thread", "io-util", "time", "sync"] }
+
+[target.'cfg(unix)'.dependencies]
+libc = "0.2.169"
+
+[target.'cfg(windows)'.dependencies]
 winapi = { version = "0.3", features = ["winsock2", "ws2def", "ws2ipdef", "ws2tcpip"] }
+
+[target.'cfg(not(any(target_arch = "mips", target_arch = "mips64", target_arch = "powerpc", target_arch = "powerpc64", target_arch = "riscv64", target_arch = "s390x", target_arch = "sparc64", target_arch = "loongarch64", target_os = "solaris", target_os = "illumos", target_os = "freebsd", target_os = "netbsd", target_os = "openbsd", target_os = "dragonfly", target_env = "musl")))'.dependencies]
+notify = { version = "8.2.0" }
+curl = { version = "0.4.49", features = ["static-ssl", "static-curl"] }
 
 [profile.release]
 opt-level = "z"

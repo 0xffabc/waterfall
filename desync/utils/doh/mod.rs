@@ -5,6 +5,23 @@ use crate::{
     desync::utils::doh::parser::{create_queries, parse_dns_response},
 };
 
+#[cfg(not(any(
+    target_arch = "mips",
+    target_arch = "mips64",
+    target_arch = "powerpc",
+    target_arch = "powerpc64",
+    target_arch = "riscv64",
+    target_arch = "s390x",
+    target_arch = "sparc64",
+    target_arch = "loongarch64",
+    target_os = "solaris",
+    target_os = "illumos",
+    target_os = "freebsd",
+    target_os = "netbsd",
+    target_os = "openbsd",
+    target_os = "dragonfly",
+    target_env = "musl",
+)))]
 use curl::easy::Easy;
 
 static DNS_SERVERS: OnceLock<Vec<String>> = OnceLock::new();
@@ -44,6 +61,23 @@ pub struct DOHResolver();
 pub mod parser;
 
 impl DOHResolver {
+    #[cfg(not(any(
+        target_arch = "mips",
+        target_arch = "mips64",
+        target_arch = "powerpc",
+        target_arch = "powerpc64",
+        target_arch = "riscv64",
+        target_arch = "s390x",
+        target_arch = "sparc64",
+        target_arch = "loongarch64",
+        target_os = "solaris",
+        target_os = "illumos",
+        target_os = "freebsd",
+        target_os = "netbsd",
+        target_os = "openbsd",
+        target_os = "dragonfly",
+        target_env = "musl",
+    )))]
     async fn resolve_with(dns_server: &str, data: String) -> Result<Vec<u8>> {
         let url = dns_server.replace("{}", &data);
 
@@ -77,6 +111,27 @@ impl DOHResolver {
         .await?;
 
         result
+    }
+
+    #[cfg(any(
+        target_arch = "mips",
+        target_arch = "mips64",
+        target_arch = "powerpc",
+        target_arch = "powerpc64",
+        target_arch = "riscv64",
+        target_arch = "s390x",
+        target_arch = "sparc64",
+        target_arch = "loongarch64",
+        target_os = "solaris",
+        target_os = "illumos",
+        target_os = "freebsd",
+        target_os = "netbsd",
+        target_os = "openbsd",
+        target_os = "dragonfly",
+        target_env = "musl",
+    ))]
+    async fn resolve_with(dns_server: &str, data: String) -> Result<Vec<u8>> {
+        panic!("DoH multiplexer is not available on targets without direct OpenSSL support");
     }
 
     pub async fn doh_resolver(domain: String) -> Result<String> {

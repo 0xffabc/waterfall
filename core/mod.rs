@@ -18,7 +18,6 @@ pub enum NetworkProtocol {
     TCP,
 }
 
-use libc::exit;
 use quick_xml::se::Serializer;
 use serde::{Deserialize, Serialize};
 
@@ -29,10 +28,44 @@ use crate::core::aux_config::AuxConfig;
 
 use clap::Parser;
 
+#[cfg(not(any(
+    target_arch = "mips",
+    target_arch = "mips64",
+    target_arch = "powerpc",
+    target_arch = "powerpc64",
+    target_arch = "riscv64",
+    target_arch = "s390x",
+    target_arch = "sparc64",
+    target_arch = "loongarch64",
+    target_os = "solaris",
+    target_os = "illumos",
+    target_os = "freebsd",
+    target_os = "netbsd",
+    target_os = "openbsd",
+    target_os = "dragonfly",
+    target_env = "musl",
+)))]
 use notify::{RecommendedWatcher, RecursiveMode, Result, Watcher};
 
 use futures::{SinkExt, StreamExt};
 
+#[cfg(not(any(
+    target_arch = "mips",
+    target_arch = "mips64",
+    target_arch = "powerpc",
+    target_arch = "powerpc64",
+    target_arch = "riscv64",
+    target_arch = "s390x",
+    target_arch = "sparc64",
+    target_arch = "loongarch64",
+    target_os = "solaris",
+    target_os = "illumos",
+    target_os = "freebsd",
+    target_os = "netbsd",
+    target_os = "openbsd",
+    target_os = "dragonfly",
+    target_env = "musl",
+)))]
 pub async fn core_launch_task() -> Result<()> {
     let (mut tx, mut rx) = mpsc::channel(1);
 
@@ -62,6 +95,27 @@ pub async fn core_launch_task() -> Result<()> {
         }
     }
 
+    Ok(())
+}
+
+#[cfg(any(
+    target_arch = "mips",
+    target_arch = "mips64",
+    target_arch = "powerpc",
+    target_arch = "powerpc64",
+    target_arch = "riscv64",
+    target_arch = "s390x",
+    target_arch = "sparc64",
+    target_arch = "loongarch64",
+    target_os = "solaris",
+    target_os = "illumos",
+    target_os = "freebsd",
+    target_os = "netbsd",
+    target_os = "openbsd",
+    target_os = "dragonfly",
+    target_env = "musl",
+))]
+pub async fn core_launch_task() -> Result<()> {
     Ok(())
 }
 
@@ -104,9 +158,7 @@ fn load_config() -> AuxConfig {
 
             debug!("A fresh config has been made! Rerun waterfall or edit the specified config");
 
-            unsafe {
-                exit(0);
-            }
+            std::process::exit(0);
         }
     }
 
