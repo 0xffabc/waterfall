@@ -20,10 +20,13 @@ Limitations
   You should compile curl with OpenSSL instead. Moreover, OpenSSL is a correct ssl implementation.
   You can also consider rustls (if you're on Rust, obviously)
   In future, I'll add a configuration flag to disable async socket piping and use the old multi-threaded approach instead.
+* No support for go libraries (will return 'bad record MAC', the same issue as with schannel)
 * Inability to inject fabricated TCP packets in the stream (libpcap solves that)
 * Lack of customization for fake packets RNG
 * Inability to choose a Teredo interface on Windows as a fallback for `iface` config option on IPv6
 * DNS leak in waterfall-proxy makes DoH/non DoH DNS requests go through the system, and not waterfall-proxy
+* DNS multiplexer doesn't account for AAAA records and doesn't implement happy eyeballs
+* You have to manually bind the socket to an owned IPv6 ip if you've got one
 
 Most of these limitations are eventually fixable and will be patched over time
 However, you can make a PR if you're interested

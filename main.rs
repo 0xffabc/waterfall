@@ -26,7 +26,7 @@ use crate::desync::utils::ip::IpParser;
 use crate::desync::utils::filter::Whitelist;
 use crate::tamper::service::{compile_patterns, process_packet};
 
-use std::net::TcpListener;
+use tokio::net::TcpListener;
 
 use std::time::{self, Duration};
 
@@ -299,7 +299,8 @@ async fn main() -> Result<()> {
         )
         .replace("\"", "")
         .replace("\"", ""),
-    )?;
+    )
+    .await?;
 
     info!(
         "Socks5 proxy bound at {}:{}",
@@ -313,15 +314,11 @@ async fn main() -> Result<()> {
         );
     }
 
-    for stream in listener.incoming() {
-        let client = stream?;
-
-        client.set_nonblocking(true)?;
+    loop {
+        let (client, _) = listener.accept().await?;
 
         tokio::spawn(async move {
-            let _ = socks::socks5_proxy(tokio::net::TcpStream::from_std(client).unwrap()).await;
+            let _ = socks::socks5_proxy(client).await;
         });
     }
-
-    Ok(())
 }
