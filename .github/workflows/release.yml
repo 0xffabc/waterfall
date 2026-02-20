@@ -38,5 +38,5 @@ jobs:
             waterfall-${{ github.event.release.tag_name }}-linux-x86_64
             waterfall-${{ github.event.release.tag_name }}-win-x86_64.exe
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.PAT }}
  
