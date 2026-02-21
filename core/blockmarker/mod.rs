@@ -24,24 +24,20 @@ pub fn start_cleanup_task() {
     tokio::spawn(async {
         info!("IP address cleanup task was started");
 
-        let mut interval = tokio::time::interval(Duration::from_secs(60 * 60));
+        let mut interval = tokio::time::interval(Duration::from_secs(300));
+
+        let mut derivative_val;
 
         loop {
             interval.tick().await;
 
-            cleanup_marked_ips().await;
+            let mut lock = MARKED_IPS.lock().await;
+
+            derivative_val = std::cmp::min(4, lock.len());
+
+            lock.drain(0..derivative_val);
+
+            info!("Cleaned up {derivative_val} IPs");
         }
     });
-}
-
-async fn cleanup_marked_ips() {
-    let mut lock = MARKED_IPS.lock().await;
-
-    let removed_count = lock.len();
-
-    lock.clear();
-
-    if removed_count > 0 {
-        info!("Cleaned up {} IP addresses", removed_count);
-    }
 }
