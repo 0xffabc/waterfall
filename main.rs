@@ -6,6 +6,7 @@ mod tamper;
 use anyhow::Result;
 
 use crate::core::aux_config::AuxConfig;
+use crate::core::blockmarker::start_cleanup_task;
 use crate::core::strategy::Strategies;
 use crate::desync::disoob::{Disoob, DisorderedOOB, Oob2};
 use crate::desync::disorder::{Disorder, Disorder2, DisorderD};
@@ -313,6 +314,7 @@ async fn main() -> Result<()> {
     }
 
     spawn_hot_reloader().await;
+    start_cleanup_task();
 
     pretty_env_logger::init_timed();
 
