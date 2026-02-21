@@ -86,7 +86,10 @@ pub async fn core_launch_task() -> Result<()> {
     while let Some(res) = rx.next().await {
         match res {
             Ok(_) => {
-                let mut lock = CONFIG.lock().unwrap();
+                let mut lock = match CONFIG.lock() {
+                    Err(e) => e.into_inner(),
+                    Ok(guard) => guard,
+                };
 
                 *lock = Some(load_config());
 
@@ -163,13 +166,20 @@ fn load_config() -> AuxConfig {
         }
     }
 
-    let config: AuxConfig = quick_xml::de::from_str(&xml_data).expect("Failed to deserialize");
+    let config: AuxConfig = quick_xml::de::from_str(&xml_data).unwrap_or_else(|_| {
+        error!("Failed to load waterfall-proxy config: Loading a default one instead!");
+
+        AuxConfig::default()
+    });
 
     config
 }
 
 pub fn parse_args() -> AuxConfig {
-    let mut lock = CONFIG.lock().unwrap();
+    let mut lock = match CONFIG.lock() {
+        Err(e) => e.into_inner(),
+        Ok(guard) => guard,
+    };
 
     match lock.clone() {
         Some(config) => config,
