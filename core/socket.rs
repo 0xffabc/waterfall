@@ -16,47 +16,43 @@ use std::io::Read;
 pub struct SocketOps();
 
 impl SocketOps {
-    pub fn new_proxied(addr: SocketAddr, proxy0: String) -> TcpStream {
+    pub fn new_proxied(addr: SocketAddr, proxy0: String) -> Result<TcpStream> {
+        info!("{addr:?} is being forwarded to proxy {proxy0}");
+
         let mut socket = std::net::TcpStream::connect(
             proxy0
-                .to_socket_addrs()
-                .expect("Wrong proxy IP")
+                .to_socket_addrs()?
                 .next()
-                .expect("Bad IP resolver"),
-        )
-        .expect("Socks5 proxy is unreachable");
+                .ok_or(anyhow!("No addrs"))?,
+        )?;
 
-        let mut temp_buf = [0u8; 64];
+        let mut buf = [0u8; 512];
 
-        let _ = socket.write_all(&vec![0x05, 1, 0]);
-        let _ = socket.read(&mut temp_buf);
+        socket.write_all(&[0x05, 0x01, 0x00])?;
 
-        let mut connreq = vec![0x05, 0x01, 0x00];
+        socket.read(&mut buf)?;
 
-        if addr.is_ipv4() {
-            connreq.push(0x01);
-        } else if addr.is_ipv6() {
-            connreq.push(0x04);
-        } else {
-            connreq.push(0x03);
-        }
+        let mut connreq = Vec::with_capacity(22);
+
+        connreq.extend_from_slice(&[0x05, 0x01, 0x00]);
 
         match addr {
             SocketAddr::V4(v4) => {
-                connreq.push(0x04);
+                connreq.push(0x01);
                 connreq.extend_from_slice(&v4.ip().octets());
                 connreq.extend_from_slice(&v4.port().to_be_bytes());
             }
             SocketAddr::V6(v6) => {
-                connreq.push(0x06);
+                connreq.push(0x04);
                 connreq.extend_from_slice(&v6.ip().octets());
                 connreq.extend_from_slice(&v6.port().to_be_bytes());
             }
         }
 
-        let _ = socket.read(&mut temp_buf);
+        socket.write_all(&connreq)?;
+        socket.read(&mut buf)?;
 
-        TcpStream::from_std(socket).expect("This shouldn't have happened")
+        Ok(TcpStream::from_std(socket)?)
     }
 
     pub fn connect_socket(addr: SocketAddr) -> Result<TcpStream> {
@@ -82,16 +78,21 @@ impl SocketOps {
 
                 if let (Some(action_type), Some(exec)) = (split.next(), split.next()) {
                     match action_type {
-                        "socks5" => return Ok(SocketOps::new_proxied(addr, exec.to_string())),
+                        "socks5" => return SocketOps::new_proxied(addr, exec.to_string()),
                         "block" => {
                             return Err(anyhow!("Connection aborted by a router rule"));
                         }
-                        _ => continue,
+                        _ => {
+                            info!(
+                                "Skipping bad action type for exec {split:?} in pattern {}",
+                                &rule.rule_match
+                            );
+
+                            continue;
+                        }
                     }
                 }
             }
-
-            break;
         }
 
         let socket = Socket::new(domain_type, Type::STREAM, Some(Protocol::TCP))?;

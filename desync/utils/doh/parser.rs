@@ -6,8 +6,9 @@ use base64::{
     engine::{self, general_purpose},
     Engine as _,
 };
-use iprobe::ipv6;
 use rusdig::{Query, RecordType};
+
+use crate::desync::utils::ip::supports_ipv6;
 
 const CUSTOM_ENGINE: engine::GeneralPurpose =
     engine::GeneralPurpose::new(&alphabet::URL_SAFE, general_purpose::NO_PAD);
@@ -56,7 +57,7 @@ pub fn parse_dns_response(response_bytes: &[u8]) -> Result<SocketAddr> {
 
     /* Try to find and return an IPv6, if the specified interface supports it */
 
-    if ipv6() {
+    if supports_ipv6() {
         let ipv6_ip = ips.iter().find(|e| e.is_ipv6());
 
         match ipv6_ip {

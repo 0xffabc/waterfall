@@ -1,7 +1,8 @@
 use anyhow::Result;
+use iprobe::ipv6;
 use std::net::IpAddr;
 
-use crate::desync::utils::doh::DOHResolver;
+use crate::{core::parse_args, desync::utils::doh::DOHResolver};
 
 #[derive(Debug, Clone)]
 pub struct IpParser {
@@ -135,4 +136,8 @@ impl IpParser {
             }),
         }
     }
+}
+
+pub fn supports_ipv6() -> bool {
+    ipv6() && &parse_args().bind_options.iface_ipv6 != "none"
 }

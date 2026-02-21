@@ -4,7 +4,6 @@ mod socks;
 mod tamper;
 
 use anyhow::Result;
-use iprobe::ipv6;
 
 use crate::core::aux_config::AuxConfig;
 use crate::core::strategy::Strategies;
@@ -22,7 +21,7 @@ use crate::desync::utils::random::Random;
 use crate::desync::utils::sni::Sni;
 use crate::desync::utils::utils;
 
-use crate::desync::utils::ip::IpParser;
+use crate::desync::utils::ip::{supports_ipv6, IpParser};
 
 use crate::desync::utils::filter::Whitelist;
 use crate::tamper::service::{compile_patterns, process_packet};
@@ -319,7 +318,7 @@ async fn main() -> Result<()> {
 
     info!(
         "Waterfall is starting {} IPv6 support",
-        if ipv6() { "with" } else { "without" }
+        if supports_ipv6() { "with" } else { "without" }
     );
 
     test_dns_servers().await;

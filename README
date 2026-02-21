@@ -149,6 +149,20 @@ Router rule types: Forward (socks5, block), FakeDNS
 FakeDNS will run before the DOH resolver and bypass it completely, and can be only used with DnsQuery scope.
 Forward is not available on SNI, unless it's a `block` type.
 
+You can also forward request to a SOCKS5 proxy by IP:
+
+```
+<rules
+            scope="IP"
+            type="Forward"
+            match="104.16.79.73"
+            exec="socks5 127.0.0.1:9150"
+        />
+```
+
+This is useful for bypassing 16-20kb blocks in Russia, by forwarding traffic through torc
+If you can't FakeDNS a website to a working cloudflare IP for some reason.
+
 Global strategy whitelist
 -------------------------
 
