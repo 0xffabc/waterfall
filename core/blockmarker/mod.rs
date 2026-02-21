@@ -17,6 +17,16 @@ pub async fn add_marker(socket_addr: SocketAddr) {
     }
 }
 
+pub async fn remove_marker(socket_addr: SocketAddr) {
+    let mut lock = MARKED_IPS.lock().await;
+
+    info!(
+        "Unmarking {socket_addr:?} from 16-30kb block list, since a normalized connectivity was proven"
+    );
+
+    lock.retain(|v| v != &socket_addr);
+}
+
 pub async fn is_16kb_blocked(socket_addr: SocketAddr) -> bool {
     let lock = MARKED_IPS.lock().await;
 
