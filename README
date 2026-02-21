@@ -62,6 +62,12 @@ Limitations
   You should compile curl with OpenSSL instead. Moreover, OpenSSL is a correct ssl implementation.
   You can also consider rustls (if you're on Rust, obviously)
   In future, I'll add a configuration flag to disable async socket piping and use the old multi-threaded approach instead.
+* Bad congestion avoidance mechanism choice by default
+  Tokio relies on mio/epoll for async operations. If it's writable - it writes, if it's readable - it reads.
+  Zero suggestions or control for whether there's an optimal tcp window size or not, whether a socket is using TOO MUCH bandwidth
+  and blocking the whole thread (out of 12!). The proxy server might freeze if there are 12 connections downloading huge files.
+  There's no control over the Writer's behavior, and I'll have to write my own.
+  A SOCKS5 server that manages the whole system must implement some basic load balancing.
 * No support for go libraries (will return 'bad record MAC', the same issue as with schannel)
 * Inability to inject fabricated TCP packets in the stream (libpcap solves that)
 * Lack of customization for fake packets RNG
@@ -342,6 +348,7 @@ Planned features
 - Eventually waterfall will become a more advanced traffic inspection and modification tool, rather than just a censorship evasion tool
 - Eventually waterfall will become an autonomous censorship evasion tool
 - A more advanced packet injection config
+- Blockcheck subprogram
 
 Useful sources
 --------------
