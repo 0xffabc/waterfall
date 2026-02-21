@@ -24,7 +24,7 @@ pub fn start_cleanup_task() {
     tokio::spawn(async {
         info!("IP address cleanup task was started");
 
-        let mut interval = tokio::time::interval(Duration::from_secs(60));
+        let mut interval = tokio::time::interval(Duration::from_secs(60 * 60));
 
         loop {
             interval.tick().await;
