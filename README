@@ -74,6 +74,7 @@ Limitations
 * DNS leak in waterfall-proxy makes DoH/non DoH DNS requests go through the system, and not waterfall-proxy
 * DNS multiplexer doesn't implement happy eyeballs
 * Lack of a blockcheck implementation
+* The combo of serde and anyhow breaks compatibility on some architectures
 
 Most of these limitations are eventually fixable and will be patched over time
 However, you can make a PR if you're interested
@@ -155,10 +156,33 @@ You can also forward request to a SOCKS5 proxy by IP:
 <rules
             scope="IP"
             type="Forward"
-            match="104.16.79.73"
+            match="cidr 104.16.64.0/20"
             exec="socks5 127.0.0.1:9150"
         />
 ```
+
+You can use an `if16kb` match statement like this
+
+```
+        <rules
+            scope="IP"
+            type="Forward"
+            match="if16kb music.youtube.com,youtube.com,googleapis.com,googlevideo.com,chat.deepseek.com,deepseek.com,github.com,ntc.party"
+            exec="socks5 127.0.0.1:9150"
+        />
+```
+
+As for now, only 2 match statements exist:
+- cidr <CIDR> marker
+- if16kb <exclusions list> marker
+    * When a domain is inside of the exclusion list, it WILL NOT get affected by waterfall.
+
+When used, waterfall-proxy will try to resolve the domain sequentally and wait until it bypasses the 16-20kb block.
+If it fails to do so, you have 2 options:
+
+1. Drop the connection (useful to cut a broken google cache server)
+2. Forward it to a socks5 proxy
+3. Manually put a FakeDNS record, if one of the IPs isn't covered by the censor. This approach is the most effective but complex. It works only for cloudflare (since it's a CDN, obviously it will!) involves scanning every CIDR of the HP and analyzing the results.
 
 This is useful for bypassing 16-20kb blocks in Russia, by forwarding traffic through torc
 If you can't FakeDNS a website to a working cloudflare IP for some reason.
