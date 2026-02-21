@@ -16,6 +16,29 @@ use std::io::Read;
 
 pub struct SocketOps();
 
+fn checkis16kbaccepted(conditional: &str, sni: String) -> bool {
+    let mut split = conditional.splitn(2, ' ');
+
+    let opt_action_type = split.next();
+    let opt_exec = split.next();
+
+    if opt_action_type.is_some() && opt_exec.is_some() {
+        let vsplit = opt_exec.unwrap().split(',').collect::<Vec<_>>();
+
+        return !vsplit.contains(&sni.as_str());
+    };
+
+    opt_action_type.is_some_and(|x| x == "if16kb")
+}
+
+fn checkiscidraccepted(conditional: &str) -> bool {
+    let mut split = conditional.splitn(2, ' ');
+
+    let opt_action_type = split.next();
+
+    opt_action_type.is_some_and(|x| x == "cidr")
+}
+
 impl SocketOps {
     pub fn new_proxied(addr: SocketAddr, proxy0: String) -> Result<TcpStream> {
         info!("{addr:?} is being forwarded to proxy {proxy0}");
@@ -56,7 +79,7 @@ impl SocketOps {
         Ok(TcpStream::from_std(socket)?)
     }
 
-    pub async fn connect_socket(addr: SocketAddr) -> Result<TcpStream> {
+    pub async fn connect_socket(sni: String, addr: SocketAddr) -> Result<TcpStream> {
         let domain_type = match addr {
             SocketAddr::V4(_) => Domain::IPV4,
             SocketAddr::V6(_) => Domain::IPV6,
@@ -73,12 +96,14 @@ impl SocketOps {
 
             let ip = addr.ip();
 
-            let should_route = if &rule.rule_match == "if16kb" {
+            let should_route = if checkis16kbaccepted(&rule.rule_match, sni.clone()) {
                 is_16kb_blocked(SocketAddr::new(ip, 443)).await
-            } else {
+            } else if checkiscidraccepted(&rule.rule_match) {
                 let network = rule.rule_match.parse::<IpNetwork>()?;
 
                 network.contains(ip)
+            } else {
+                false
             };
 
             if should_route {
