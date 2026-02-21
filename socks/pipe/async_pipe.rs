@@ -30,24 +30,9 @@ pub async fn pipe_sockets(socket: TcpStream, stream: TcpStream) -> Result<()> {
     let mut buffer1: Vec<u8> = vec![0u8; config.socket_options.so_send_size];
     let mut buffer2: Vec<u8> = vec![0u8; config.socket_options.so_recv_size];
 
-    let mut transferred = 0;
-    let mut last_transmission = std::time::Instant::now();
-
     loop {
         if !socket_open || !stream_open {
             break;
-        }
-
-        if last_transmission.elapsed() > Duration::from_secs(3)
-            && transferred < 33 * 1024
-            && transferred > 1024
-        {
-            blockmarker::add_marker(stream.peer_addr()?).await;
-
-            stream.shutdown().await?;
-            socket.shutdown().await?;
-
-            return Err(anyhow!("16-32kb block detected"));
         }
 
         tokio::select! {
@@ -76,6 +61,14 @@ pub async fn pipe_sockets(socket: TcpStream, stream: TcpStream) -> Result<()> {
                     Err(e) => return Err(e.into())
                 }
             }
+            _ = tokio::time::sleep(Duration::from_secs(3)) => {
+                blockmarker::add_marker(stream.peer_addr()?).await;
+
+                stream.shutdown().await?;
+                socket.shutdown().await?;
+
+                return Err(anyhow!("16-32kb block detected"));
+            }
             readable1 = stream.readable(), if stream_open => {
                 readable1?;
 
@@ -92,10 +85,6 @@ pub async fn pipe_sockets(socket: TcpStream, stream: TcpStream) -> Result<()> {
                         let data = &buffer2[..n];
 
                         socket.write_all(data).await?;
-
-                        transferred += n;
-
-                        last_transmission = std::time::Instant::now();
                     }
 
                     Err(e) if e.kind() == std::io::ErrorKind::WouldBlock => { }
