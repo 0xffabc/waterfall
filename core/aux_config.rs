@@ -29,8 +29,11 @@ pub struct BindOptions {
     #[serde(default = "default_bind_port", rename = "@port")]
     pub bind_port: u16,
 
-    #[serde(default = "default_bind_iface", rename = "@iface")]
-    pub bind_iface: String,
+    #[serde(default = "default_bind_iface", rename = "@iface-ipv4")]
+    pub iface_ipv4: String,
+    #[serde(default = "default_bind_iface", rename = "@iface-ipv6")]
+    pub iface_ipv6: String,
+
     #[serde(default = "default_bind_iface_mtu", rename = "@iface-mtu")]
     pub bind_iface_mtu: u32,
     #[serde(default = "default_bind_iface_ipv4", rename = "@iface-ipv4-ip")]
@@ -212,7 +215,8 @@ impl Default for AuxConfig {
             bind_options: BindOptions {
                 bind_host: default_bind_host(),
                 bind_port: default_bind_port(),
-                bind_iface: default_bind_iface(),
+                iface_ipv4: default_bind_iface(),
+                iface_ipv6: default_bind_iface(),
                 bind_iface_mtu: default_bind_iface_mtu(),
                 bind_iface_ipv4: default_bind_iface_ipv4(),
                 bind_iface_ipv6: default_bind_iface_ipv6(),

@@ -52,6 +52,9 @@ waterfall-sparcv9-sun-solaris
 
 My condolences if you're in this list ^. If the users of these systems exist, create an issue to let me know about its popularity.
 
++ Note: some architectures don't have the DNS multiplexer and config hot-reloading enabled by default.
++ OpenSSL and zlib are painful to cross-compile
+
 Limitations
 -----------
 
@@ -62,10 +65,9 @@ Limitations
 * No support for go libraries (will return 'bad record MAC', the same issue as with schannel)
 * Inability to inject fabricated TCP packets in the stream (libpcap solves that)
 * Lack of customization for fake packets RNG
-* Inability to choose a Teredo interface on Windows as a fallback for `iface` config option on IPv6
 * DNS leak in waterfall-proxy makes DoH/non DoH DNS requests go through the system, and not waterfall-proxy
-* DNS multiplexer doesn't account for AAAA records and doesn't implement happy eyeballs
-* You have to manually bind the socket to an owned IPv6 ip if you've got one
+* DNS multiplexer doesn't implement happy eyeballs
+* Lack of a blockcheck implementation
 
 Most of these limitations are eventually fixable and will be patched over time
 However, you can make a PR if you're interested
@@ -258,13 +260,14 @@ Let's say, you're using nekoray, which allows you to specify CIDR/process bypass
 Firstly, run ifconfig/ipconfig to check which interface/adapter is used for the network
 For me, that would be `wlan0`. If you're on windows, it would look like something of 'Ethernet'.
 
-Set the target interface (`iface` field) to the device name in your configuration:
+Set the target interface (`iface-ipv*` field) to the device name in your configuration:
 
 ```
-<bind-options
-        host="192.168.1.101"
-        port="14768"
-        iface="Ethernet"
+    <bind-options
+        host="127.0.0.1"
+        port="1080"
+        iface-ipv4="Ethernet"
+        iface-ipv6="Teredo Tunneling Pseudo-Interface"
         iface-mtu="1500"
         iface-ipv4-ip="0.0.0.0"
         iface-ipv6-ip="::"
@@ -306,6 +309,9 @@ due to your ISP or different causes.
 
 Note that the OS would still resolve the domains of your DNS servers. I'm looking forward to
 fixing this issue by forcing them to go through waterfall-proxy.
+
+DNS multiplexer feature is not available on some architectures, due to the struggle with compiling OpenSSL and Zlib.
+I'm looking forward to resolving this issue.
 
 UDP support
 -----------

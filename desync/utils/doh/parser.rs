@@ -56,7 +56,14 @@ pub fn parse_dns_response(response_bytes: &[u8]) -> Result<SocketAddr> {
 
     /* Try to find and return an IPv6, if the specified interface supports it */
 
-    if ipv6() {}
+    if ipv6() {
+        let ipv6_ip = ips.iter().find(|e| e.is_ipv6());
+
+        match ipv6_ip {
+            Some(ip) => return Ok(*ip),
+            None => {}
+        }
+    }
 
     let ipv4_ip = ips.iter().find(|e| e.is_ipv4());
 

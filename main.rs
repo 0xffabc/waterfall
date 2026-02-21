@@ -4,6 +4,7 @@ mod socks;
 mod tamper;
 
 use anyhow::Result;
+use iprobe::ipv6;
 
 use crate::core::aux_config::AuxConfig;
 use crate::core::strategy::Strategies;
@@ -316,7 +317,10 @@ async fn main() -> Result<()> {
 
     pretty_env_logger::init_timed();
 
-    info!("Waterfall is starting");
+    info!(
+        "Waterfall is starting {} IPv6 support",
+        if ipv6() { "with" } else { "without" }
+    );
 
     test_dns_servers().await;
 
@@ -349,10 +353,17 @@ async fn main() -> Result<()> {
         config.bind_options.bind_host, config.bind_options.bind_port
     );
 
-    if config.bind_options.bind_iface != "default".to_string() {
+    if config.bind_options.iface_ipv4 != "default".to_string() {
         info!(
-            "OK! I'll bind every socket to interface {}, just as you've said",
-            config.bind_options.bind_iface
+            "OK! I'll bind every IPv4 socket to interface {}, just as you've said",
+            config.bind_options.iface_ipv4
+        );
+    }
+
+    if config.bind_options.iface_ipv6 != "default".to_string() {
+        info!(
+            "OK! I'll bind every IPv6 socket to interface {}, just as you've said",
+            config.bind_options.iface_ipv6
         );
     }
 
