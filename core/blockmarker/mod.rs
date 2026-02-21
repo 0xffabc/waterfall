@@ -8,8 +8,6 @@ pub async fn add_marker(socket_addr: SocketAddr) {
     let mut lock = MARKED_IPS.lock().await;
 
     if !lock.contains(&socket_addr) {
-        info!("{socket_addr} is 16-32kb blocked");
-
         lock.push(socket_addr);
     }
 }

@@ -197,8 +197,6 @@ impl DOHResolver {
         }
 
         if ips.len() != 0 {
-            error!("It's very likely that waterfall-resolver has failed to resolve an IP of {domain} a non-16kb blocked one. Consider adding a DnsQuery/FakeDNS rule record manually");
-
             Ok(ips[0].clone())
         } else {
             Err(anyhow!("Did not resolve {domain}"))

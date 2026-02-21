@@ -81,7 +81,7 @@ pub async fn core_launch_task() -> Result<()> {
 
     let path = Args::parse().config;
 
-    watcher.watch(Path::new(&path), RecursiveMode::Recursive)?;
+    watcher.watch(Path::new(&path), RecursiveMode::NonRecursive)?;
 
     while let Some(res) = rx.next().await {
         match res {
@@ -95,6 +95,7 @@ pub async fn core_launch_task() -> Result<()> {
 
                 info!("Config hot-reloaded!");
             }
+
             Err(e) => error!("Error while watching the config file: {e:?}"),
         }
     }
@@ -166,8 +167,8 @@ fn load_config() -> AuxConfig {
         }
     }
 
-    let config: AuxConfig = quick_xml::de::from_str(&xml_data).unwrap_or_else(|_| {
-        error!("Failed to load waterfall-proxy config: Loading a default one instead!");
+    let config: AuxConfig = quick_xml::de::from_str(&xml_data).unwrap_or_else(|e| {
+        error!("Failed to load waterfall-proxy config: {e}");
 
         AuxConfig::default()
     });

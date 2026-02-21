@@ -71,7 +71,7 @@ impl Router {
     ) -> Result<RouterInterjectionStatus> {
         let rules = Self::query_router_rules(config, &RouterRuleType::FakeDNS);
 
-        let ip_parser_result = IpParser::parse(buffer.as_ref()).await?;
+        let ip_parser_result = IpParser::parse_no_resolve(buffer.as_ref()).await?;
 
         for rule in rules {
             if rule.scope != RouterRuleScope::DnsQuery {
