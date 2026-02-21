@@ -1,7 +1,7 @@
 use std::sync::OnceLock;
 
 use crate::{
-    core::parse_args,
+    core::{blockmarker::is_16kb_blocked, parse_args},
     desync::utils::doh::parser::{create_queries, parse_dns_response},
 };
 
@@ -178,18 +178,30 @@ impl DOHResolver {
             })
             .collect();
 
+        let mut ips = vec![];
+
         while !tasks.is_empty() {
             let (result, _index, remaining) = futures::future::select_all(tasks).await;
 
             if let Some(ip) = result {
-                return Ok(ip);
+                let addr = ip;
+
+                if !is_16kb_blocked((addr.clone() + ":443").parse()?).await {
+                    return Ok(addr);
+                }
+
+                ips.push(addr);
             }
 
             tasks = remaining;
         }
 
-        Err(anyhow!(
-            "Every DNS query was failed for {domain}. Consider creating a FakeDNS record manually."
-        ))
+        if ips.len() != 0 {
+            error!("It's very likely that waterfall-resolver has failed to resolve an IP of {domain} a non-16kb blocked one. Consider adding a DnsQuery/FakeDNS rule record manually");
+
+            Ok(ips[0].clone())
+        } else {
+            Err(anyhow!("Did not resolve {domain}"))
+        }
     }
 }

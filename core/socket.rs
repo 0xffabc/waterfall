@@ -1,5 +1,5 @@
 use anyhow::{anyhow, Result};
-use glob::Pattern;
+use ipnetwork::IpNetwork;
 use socket2::SockAddr;
 use socket2::{Domain, Protocol, Socket, Type};
 use std::io::Write;
@@ -8,6 +8,7 @@ use std::net::ToSocketAddrs;
 use tokio::net::TcpStream;
 
 use crate::core::aux_config::{RouterRuleScope, RouterRuleType, SocketOptions};
+use crate::core::blockmarker::is_16kb_blocked;
 use crate::core::parse_args;
 use crate::core::router::Router;
 use socket2_ext::{AddressBinding, BindDeviceOption};
@@ -55,7 +56,7 @@ impl SocketOps {
         Ok(TcpStream::from_std(socket)?)
     }
 
-    pub fn connect_socket(addr: SocketAddr) -> Result<TcpStream> {
+    pub async fn connect_socket(addr: SocketAddr) -> Result<TcpStream> {
         let domain_type = match addr {
             SocketAddr::V4(_) => Domain::IPV4,
             SocketAddr::V6(_) => Domain::IPV6,
@@ -70,10 +71,17 @@ impl SocketOps {
                 continue;
             }
 
-            let pattern = Pattern::new(&rule.rule_match)
-                .expect("Invalid rule, thank god I'm going to panic the whole program");
+            let ip = addr.ip();
 
-            if pattern.matches(&addr.ip().to_string()) {
+            let should_route = if &rule.rule_match == "if16kb" {
+                is_16kb_blocked(SocketAddr::new(ip, 443)).await
+            } else {
+                let network = rule.rule_match.parse::<IpNetwork>()?;
+
+                network.contains(ip)
+            };
+
+            if should_route {
                 let mut split = rule.exec.splitn(2, ' ');
 
                 if let (Some(action_type), Some(exec)) = (split.next(), split.next()) {

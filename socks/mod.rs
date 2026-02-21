@@ -99,7 +99,7 @@ pub async fn socks5_proxy(mut client: TcpStream) -> Result<()> {
         _ => return Err(anyhow!("No IP")),
     };
 
-    let server_socket = SocketOps::connect_socket(sock_addr);
+    let server_socket = SocketOps::connect_socket(sock_addr).await;
 
     match server_socket {
         Ok(socket) => {

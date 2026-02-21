@@ -267,7 +267,7 @@ impl Default for AuxConfig {
                     scope: RouterRuleScope::SNI,
                     rule_type: RouterRuleType::Forward,
                     rule_match: "*.discord.com".to_string(),
-                    exec: "socks 127.0.0.1:9050".to_string(),
+                    exec: "socks5 127.0.0.1:9050".to_string(),
                 }],
             },
             http_options: HttpOptions {

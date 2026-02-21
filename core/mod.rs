@@ -5,6 +5,7 @@ use std::sync::{LazyLock, Mutex};
 
 pub mod arg_config;
 pub mod aux_config;
+pub mod blockmarker;
 pub mod router;
 pub mod socket;
 pub mod strategy;

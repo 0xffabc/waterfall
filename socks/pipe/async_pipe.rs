@@ -1,11 +1,13 @@
+use std::time::Duration;
+
 use tokio::net::TcpStream;
 
 use tokio::io::AsyncWriteExt;
 
-use anyhow::Result;
+use anyhow::{anyhow, Result};
 
 use crate::client_hook;
-use crate::core::parse_args;
+use crate::core::{blockmarker, parse_args};
 
 pub async fn pipe_sockets(socket: TcpStream, stream: TcpStream) -> Result<()> {
     let mut socket_open = true;
@@ -28,9 +30,24 @@ pub async fn pipe_sockets(socket: TcpStream, stream: TcpStream) -> Result<()> {
     let mut buffer1: Vec<u8> = vec![0u8; config.socket_options.so_send_size];
     let mut buffer2: Vec<u8> = vec![0u8; config.socket_options.so_recv_size];
 
+    let mut transferred = 0;
+    let mut last_transmission = std::time::Instant::now();
+
     loop {
         if !socket_open || !stream_open {
             break;
+        }
+
+        if last_transmission.elapsed() > Duration::from_secs(3)
+            && transferred < 33 * 1024
+            && transferred > 1024
+        {
+            blockmarker::add_marker(stream.peer_addr()?).await;
+
+            stream.shutdown().await?;
+            socket.shutdown().await?;
+
+            return Err(anyhow!("16-32kb block detected"));
         }
 
         tokio::select! {
@@ -75,6 +92,10 @@ pub async fn pipe_sockets(socket: TcpStream, stream: TcpStream) -> Result<()> {
                         let data = &buffer2[..n];
 
                         socket.write_all(data).await?;
+
+                        transferred += n;
+
+                        last_transmission = std::time::Instant::now();
                     }
 
                     Err(e) if e.kind() == std::io::ErrorKind::WouldBlock => { }
