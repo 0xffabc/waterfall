@@ -7,9 +7,11 @@ static MARKED_IPS: LazyLock<Mutex<Vec<SocketAddr>>> = LazyLock::new(|| Mutex::ne
 pub async fn add_marker(socket_addr: SocketAddr) {
     let mut lock = MARKED_IPS.lock().await;
 
-    info!("{socket_addr} is 16-32kb blocked");
+    if !is_16kb_blocked(socket_addr).await {
+        info!("{socket_addr} is 16-32kb blocked");
 
-    lock.push(socket_addr);
+        lock.push(socket_addr);
+    }
 }
 
 pub async fn is_16kb_blocked(socket_addr: SocketAddr) -> bool {
