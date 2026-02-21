@@ -75,7 +75,7 @@ Limitations
 * DNS multiplexer doesn't implement happy eyeballs
 * Lack of a blockcheck implementation
 * The combo of serde and anyhow breaks compatibility on some architectures
-* if16kb is flawed and sometimes picks up connections from the 3rd attempt, has false positives and works off-the loop, which makes it slower
+* if16kb doesn't implement unmarking if a block more than 32kb was successfully transmitted, which causes false positives
 
 Most of these limitations are eventually fixable and will be patched over time
 However, you can make a PR if you're interested
