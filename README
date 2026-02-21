@@ -13,6 +13,45 @@ Build information
 
 First run will generate a config.xml file, unless you specified the exact filename with `--config`
 
+Waterfall is multi-platform and supports a decent amount of architectures
+
+Release downloads are generated once per major version, previously they were available in the releases, but now I'm distributing them with a .tar archive: https://github.com/qulsar/waterfall/raw/refs/heads/main/waterfall-builds.tar
+
+Tier 1 architectures
+
+waterfall-aarch64-unknown-linux-gnu
+waterfall-arm-unknown-linux-gnueabi
+waterfall-arm-unknown-linux-gnueabihf
+waterfall-x86_64-pc-windows-gnu
+waterfall-x86_64-unknown-linux-gnu
+waterfall-x86_64-unknown-linux-musl
+
+Tier 2 architectures
+
+waterfall-x86_64-pc-windows-msvc
+waterfall-i686-pc-windows-msvc
+waterfall-aarch64-pc-windows-msvc
+waterfall-armv7-unknown-linux-gnueabihf
+waterfall-i686-pc-windows-gnu
+waterfall-i686-unknown-linux-gnu
+waterfall-powerpc-unknown-linux-gnu
+waterfall-riscv64gc-unknown-linux-gnu
+
+Unsupported
+
+waterfall-armv7-unknown-linux-ohos
+waterfall-loongarch64-unknown-linux-musl
+waterfall-loongarch64-unknown-linux-gnu
+waterfall-x86_64-unknown-freebsd
+waterfall-x86_64-unknown-illumos
+waterfall-x86_64-unknown-linux-ohos
+waterfall-x86_64-unknown-netbsd
+waterfall-x86_64-unknown-freebsd
+waterfall-x86_64-pc-solaris
+waterfall-sparcv9-sun-solaris
+
+My condolences if you're in this list ^. If the users of these systems exist, create an issue to let me know about its popularity.
+
 Limitations
 -----------
 
@@ -117,6 +156,10 @@ File and path aren't considered as for now
 Strategy config
 ---------------
 
+Waterfall provides byedpi-alike strategies system, since that was the only format I've got used to 2 years ago
+
+Most of these options will get slowly deprecated in favor of more flexible methods
+
 ```
 <strategies
         type="FRAGTLS"
@@ -153,8 +196,7 @@ Available types
 * OOBSTREAMHELL - inserts A LOT of OOB bytes
 * DISOOB - DISORDER + OOB
 * OOB2 - DISORDER2 + OOB
-* FRAGTLS - Splits TLS header in two parts, used to be a powerful counter-attack against GFW. For more info: https://upb-syssec.github.io/blog/2023/record-fragmentation/. A particular case of geneva's `tamper`
-*
+* FRAGTLS (DEPRECATED, use patterns instead) - Splits TLS header in two parts, used to be a powerful counter-attack against GFW. For more info: https://upb-syssec.github.io/blog/2023/record-fragmentation/. A particular case of geneva's `tamper`
 
 AOB Scanning on packets and replacements
 ----------------------------------------
