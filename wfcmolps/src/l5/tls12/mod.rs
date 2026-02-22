@@ -1,3 +1,5 @@
+pub mod extensions;
+
 #[repr(u8)]
 pub enum ChipherSuite {
     TlsEcdheRsaWithChacha20Poly1305Sha256,
