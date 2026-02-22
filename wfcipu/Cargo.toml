@@ -1,0 +1,20 @@
+[package]
+name = "wfcipu"
+version = "0.6.8"
+edition = "2021"
+
+[profile.release]
+opt-level = "z"
+codegen-units = 1
+strip = true
+lto = true
+
+[lib]
+name = "wfcipu"
+path = "main.rs"
+
+[dependencies]
+anyhow = "1.0.102"
+iprobe = "0.1.1"
+log = "0.4.29"
+wfconfig = { version = "0.6.8", path = "../wfconfig" }

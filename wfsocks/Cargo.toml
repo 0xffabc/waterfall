@@ -1,0 +1,25 @@
+[package]
+name = "wfsocks"
+version = "0.6.8"
+edition = "2021"
+
+[profile.release]
+opt-level = "z"
+codegen-units = 1
+strip = true
+lto = true
+
+[lib]
+name = "wfsocks"
+path = "main.rs"
+
+[dependencies]
+anyhow = "1.0.102"
+log = "0.4.29"
+tokio = "1.49.0"
+wfacs5ch = { version = "0.6.8", path = "../wfacs5ch" }
+wfblmark = { version = "0.6.8", path = "../wfblmark" }
+wfcipu = { version = "0.6.8", path = "../wfcipu" }
+wfconfig = { version = "0.6.8", path = "../wfconfig" }
+wfcore = { version = "0.6.8", path = "../wfcore" }
+wfdns = { version = "0.6.8", path = "../wfdns" }

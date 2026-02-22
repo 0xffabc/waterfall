@@ -1,0 +1,27 @@
+[package]
+name = "wfacs5ch"
+version = "0.6.8"
+edition = "2021"
+
+[profile.release]
+opt-level = "z"
+codegen-units = 1
+strip = true
+lto = true
+
+[lib]
+name = "wfacs5ch"
+path = "main.rs"
+
+[dependencies]
+anyhow = "1.0.102"
+clap = { version = "4.5.60", features = ["derive"] }
+futures = "0.3.32"
+log = "0.4.29"
+notify = "8.2.0"
+quick-xml = "0.39.2"
+serde = { version = "1.0.228", features = ["derive"] }
+tokio = "1.49.0"
+wfconfig = { version = "0.6.8", path = "../wfconfig" }
+wfdesync = { version = "0.6.8", path = "../wfdesync" }
+wftamper = { version = "0.6.8", path = "../wftamper" }

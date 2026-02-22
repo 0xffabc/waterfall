@@ -1,0 +1,29 @@
+[package]
+name = "wfdesync"
+version = "0.6.8"
+edition = "2021"
+
+[profile.release]
+opt-level = "z"
+codegen-units = 1
+strip = true
+lto = true
+
+[lib]
+name = "wfdesync"
+path = "main.rs"
+
+[dependencies]
+anyhow = "1.0.102"
+glob = "0.3.3"
+log = "0.4.29"
+tokio = "1.49.0"
+wfconfig = { version = "0.6.8", path = "../wfconfig" }
+wfcore = { version = "0.6.8", path = "../wfcore" }
+wftamper = { version = "0.6.8", path = "../wftamper" }
+
+[target.'cfg(unix)'.dependencies]
+libc = "0.2.169"
+
+[target.'cfg(windows)'.dependencies]
+winapi = { version = "0.3", features = ["winsock2", "ws2def", "ws2ipdef", "ws2tcpip"] }

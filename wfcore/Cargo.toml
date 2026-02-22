@@ -1,0 +1,34 @@
+[package]
+name = "wfcore"
+version = "0.6.8"
+edition = "2021"
+
+[profile.release]
+opt-level = "z"
+codegen-units = 1
+strip = true
+lto = true
+
+[lib]
+name = "wfcore"
+path = "main.rs"
+
+[dependencies]
+anyhow = "1.0.102"
+clap = "4.5.60"
+futures = "0.3.32"
+glob = "0.3.3"
+ipnetwork = "0.21.1"
+iprobe = "0.1.1"
+log = "0.4.29"
+notify = "8.2.0"
+pretty_env_logger = "0.5.0"
+quick-xml = "0.39.2"
+serde = "1.0.228"
+socket2 = "0.5.9"
+socket2-ext = "0.1.1"
+tokio = "1.49.0"
+wfblmark = { version = "0.6.8", path = "../wfblmark" }
+wfdns = { version = "0.6.8", path = "../wfdns" }
+wfcipu = { version = "0.6.8", path = "../wfcipu" }
+wfconfig = { version = "0.6.8", path = "../wfconfig" }

@@ -1,0 +1,19 @@
+[package]
+name = "wfblmark"
+version = "0.6.8"
+edition = "2021"
+
+[profile.release]
+opt-level = "z"
+codegen-units = 1
+strip = true
+lto = true
+
+[lib]
+name = "wfblmark"
+path = "main.rs"
+
+[dependencies]
+log = "0.4.29"
+pretty_env_logger = "0.5.0"
+tokio = { version = "1.49.0", features = ["full"] }

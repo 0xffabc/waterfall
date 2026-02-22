@@ -1,34 +1,26 @@
+[workspace]
+resolver = "3"
+members = ["wfblmark", "wfacs5ch", "wfcore", "wfcipu", "wfconfig", "wfdesync", "wfdns", "wfsocks", "wftamper"]
+
 [package]
 name = "Waterfall"
-version = "0.1.0"
+version = "0.6.8"
 edition = "2021"
 
 [dependencies]
-anyhow = "1.0.101"
-base64 = "0.22.1"
-clap = { version = "4.5.59", features = ["derive"] }
-futures = "0.3.32"
-glob = "0.3.3"
-ipnetwork = "0.21.1"
-iprobe = "0.1.1"
+anyhow = "1.0.102"
 log = "0.4.29"
 pretty_env_logger = "0.5.0"
-quick-xml = { version = "0.39.1", features = ["serialize"] }
-rusdig = "0.2.3"
-serde = { version = "1.0.228", features = ["derive"] }
-socket2 = "0.5.9"
-socket2-ext = "0.1.1"
-tokio = { version = "1.49.0", features = ["rt", "net", "macros", "rt-multi-thread", "io-util", "time", "sync"] }
-
-[target.'cfg(unix)'.dependencies]
-libc = "0.2.169"
-
-[target.'cfg(windows)'.dependencies]
-winapi = { version = "0.3", features = ["winsock2", "ws2def", "ws2ipdef", "ws2tcpip"] }
-
-[target.'cfg(not(any(target_arch = "mips", target_arch = "mips64", target_arch = "powerpc", target_arch = "powerpc64", target_arch = "riscv64", target_arch = "s390x", target_arch = "sparc64", target_arch = "loongarch64", target_os = "solaris", target_os = "illumos", target_os = "freebsd", target_os = "netbsd", target_os = "openbsd", target_os = "dragonfly", target_env = "musl")))'.dependencies]
-notify = { version = "8.2.0" }
-curl = { version = "0.4.49", features = ["static-ssl", "static-curl"] }
+tokio = { version = "1.49.0", features = ["macros"] }
+wfacs5ch = { version = "0.6.8", path = "wfacs5ch" }
+wfconfig = { version = "0.6.8", path = "wfconfig" }
+wfcore = { version = "0.6.8", path = "./wfcore" }
+wfdesync = { version = "0.6.8", path = "wfdesync" }
+wfdns = { version = "0.6.8", path = "wfdns" }
+wftamper = { version = "0.6.8", path = "wftamper" }
+wfsocks = { version = "0.6.8", path = "wfsocks" }
+wfcipu = { version = "0.6.8", path = "wfcipu" }
+wfblmark = { version = "0.6.8", path = "wfblmark" }
 
 [profile.release]
 opt-level = "z"
