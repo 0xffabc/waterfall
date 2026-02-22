@@ -17,10 +17,9 @@ log = "0.4.29"
 notify = "8.2.0"
 quick-xml = "0.39.2"
 serde = "1.0.228"
-socket2 = "0.5.9"
-socket2-ext = "0.1.1"
 tokio = "1.49.0"
 wfblmark = { version = "0.6.8", path = "../wfblmark" }
 wfdns = { version = "0.6.8", path = "../wfdns" }
 wfcipu = { version = "0.6.8", path = "../wfcipu" }
 wfconfig = { version = "0.6.8", path = "../wfconfig" }
+ipconfig = "0.3.2"

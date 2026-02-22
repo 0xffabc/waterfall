@@ -1,14 +1,11 @@
 use anyhow::{anyhow, Result};
 use ipnetwork::IpNetwork;
-use socket2::SockAddr;
-use socket2::{Domain, Protocol, Socket, Type};
 use std::io::Write;
-use std::net::SocketAddr;
 use std::net::ToSocketAddrs;
-use tokio::net::TcpStream;
+use std::net::{IpAddr, SocketAddr};
+use tokio::net::{TcpSocket, TcpStream};
 
 use crate::router::Router;
-use socket2_ext::{AddressBinding, BindDeviceOption};
 use std::io::Read;
 use wfconfig::aux_config::{RouterRuleScope, RouterRuleType, SocketOptions};
 use wfconfig::parse_args;
@@ -81,12 +78,20 @@ impl SocketOps {
         Ok(TcpStream::from_std(socket)?)
     }
 
-    pub async fn connect_socket(sni: String, addr: SocketAddr) -> Result<TcpStream> {
-        let domain_type = match addr {
-            SocketAddr::V4(_) => Domain::IPV4,
-            SocketAddr::V6(_) => Domain::IPV6,
-        };
+    pub fn ifname2ip_win(ifname: String) -> Result<IpAddr> {
+        let adapters = ipconfig::get_adapters()?;
 
+        adapters
+            .iter()
+            .find(|a| a.friendly_name() == &ifname)
+            .ok_or(anyhow!("Adapter not found"))?
+            .ip_addresses()
+            .first()
+            .ok_or(anyhow!("No IP for adapter {ifname}"))
+            .copied()
+    }
+
+    pub async fn connect_socket(sni: String, addr: SocketAddr) -> Result<TcpStream> {
         let config = parse_args();
 
         let rules = Router::query_router_rules(&config, &RouterRuleType::Forward);
@@ -130,16 +135,45 @@ impl SocketOps {
             }
         }
 
-        let socket = Socket::new(domain_type, Type::STREAM, Some(Protocol::TCP))?;
-
         let bind_options = parse_args().bind_options;
 
-        if &bind_options.iface_ipv4 != "default" && domain_type == Domain::IPV4 {
-            socket.bind_to_device(BindDeviceOption::v4(&bind_options.iface_ipv4))?;
+        let (tsocket, device_name) = match addr {
+            SocketAddr::V4(_) => (TcpSocket::new_v4()?, bind_options.iface_ipv4.clone()),
+            SocketAddr::V6(_) => (TcpSocket::new_v6()?, bind_options.iface_ipv6.clone()),
+        };
+
+        #[cfg(any(target_os = "android", target_os = "fuchsia", target_os = "linux"))]
+        {
+            if &device_name != "default" {
+                tsocket.bind_device(Some(device_name.as_bytes()))?;
+            }
         }
 
-        if &bind_options.iface_ipv6 != "default" && domain_type == Domain::IPV6 {
-            socket.bind_to_device(BindDeviceOption::v6(&bind_options.iface_ipv6))?;
+        #[cfg(any(
+            target_os = "ios",
+            target_os = "macos",
+            target_os = "tvos",
+            target_os = "watchos"
+        ))]
+        {
+            if &device_name != "default" {
+                use libc::if_nametoindex;
+
+                let ifindex = std::num::NonZeroU32::new(unsafe {
+                    libc::if_nametoindex(device_name.as_ptr() as *const _)
+                });
+
+                tsocket.bind_device(Some(&ifindex.to_ne_bytes()))?;
+            }
+        }
+
+        #[cfg(target_os = "windows")]
+        {
+            let ip = Self::ifname2ip_win(device_name)?;
+
+            let addr = std::net::SocketAddr::new(ip, 0);
+
+            tsocket.bind(addr)?;
         }
 
         let SocketOptions {
@@ -148,18 +182,13 @@ impl SocketOps {
             ..
         } = parse_args().socket_options;
 
-        let sock_addr = SockAddr::from(addr);
+        tsocket.set_recv_buffer_size(so_recv_size as u32)?;
+        tsocket.set_send_buffer_size(so_send_size as u32)?;
+        tsocket.set_nodelay(true)?;
+        tsocket.set_keepalive(true)?;
 
-        socket.connect(&sock_addr)?;
+        let stream = tsocket.connect(addr).await?;
 
-        socket.set_nonblocking(true)?;
-        socket.set_recv_buffer_size(so_recv_size)?;
-        socket.set_send_buffer_size(so_send_size)?;
-        socket.set_nodelay(true)?;
-        socket.set_keepalive(true)?;
-
-        let tcp_stream: std::net::TcpStream = socket.into();
-
-        Ok(TcpStream::from_std(tcp_stream).expect("This shouldn't have happened"))
+        Ok(stream)
     }
 }
