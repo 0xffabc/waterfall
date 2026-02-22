@@ -1,6 +1,6 @@
 [workspace]
 resolver = "3"
-members = ["wfblmark", "wfacs5ch", "wfcore", "wfcipu", "wfconfig", "wfdesync", "wfdns", "wfsocks", "wftamper"]
+members = ["wfblmark", "wfacs5ch", "wfcore", "wfcmolps", "wfcipu", "wfconfig", "wfdesync", "wfdns", "wfsocks", "wftamper", "wfcmolps"]
 
 [package]
 name = "Waterfall"
