@@ -6,7 +6,7 @@ use wfconfig::{
 
 pub struct Whitelist();
 
-use log::{debug, error};
+use log::error;
 use wfcore::router::Router;
 
 impl Whitelist {
@@ -27,8 +27,6 @@ impl Whitelist {
                 let sni_slice = &data[start..end];
 
                 let sni_string = String::from_utf8_lossy(sni_slice).to_string();
-
-                debug!("Visiting SNI {sni_string}");
 
                 let config = parse_args();
 

@@ -13,7 +13,6 @@ base64 = "0.22.1"
 curl = "0.4.49"
 futures = "0.3.32"
 log = "0.4.29"
-pretty_env_logger = "0.5.0"
 rusdig = "0.2.3"
 tokio = "1.49.0"
 wfblmark = { version = "0.6.8", path = "../wfblmark" }
