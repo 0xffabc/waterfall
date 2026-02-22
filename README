@@ -320,7 +320,7 @@ Set the target interface (`iface-ipv*` field) to the device name in your configu
 
 As previously mentioned, iface-mtu|iface-ip*-ip are currently reserved, so don't touch them.
 After that, you must configure your proxy client to not capture waterfall-proxy's socket connections.
-It's practically known that socket2-ext's bind_device dies to wintun's capture intention
+Binding might not work out correctly on windows, even though it's battle tested.
 Therefore, you'll have to setup CIDR ranges on your local network, and for extra safety, process names
 for me, the only CIDR would be 172.16.0.0/12, and the process would be 'waterfall'
 On Windows, I also had to use 192.168.0.1/24 and svchost (otherwise, every packet fell into neko-tun queue)
