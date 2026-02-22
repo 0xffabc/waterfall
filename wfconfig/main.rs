@@ -26,8 +26,6 @@ static CONFIG: LazyLock<Mutex<Option<AuxConfig>>> = LazyLock::new(|| Mutex::new(
 
 use crate::aux_config::AuxConfig;
 
-use clap::Parser;
-
 use log::{debug, error, info};
 
 #[cfg(not(any(

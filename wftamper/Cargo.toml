@@ -3,12 +3,6 @@ name = "wftamper"
 version = "0.6.8"
 edition = "2021"
 
-[profile.release]
-opt-level = "z"
-codegen-units = 1
-strip = true
-lto = true
-
 [lib]
 name = "wftamper"
 path = "main.rs"
