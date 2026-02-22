@@ -11,6 +11,8 @@ Build information
 * build+run: `cargo run`
 * build: `cargo build`
 
+Requirements: pkg-config, zlib, OpenSSL
+
 First run will generate a config.xml file, unless you specified the exact filename with `--config`
 
 Waterfall is multi-platform and supports a decent amount of architectures

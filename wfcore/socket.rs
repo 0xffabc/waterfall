@@ -78,6 +78,7 @@ impl SocketOps {
         Ok(TcpStream::from_std(socket)?)
     }
 
+    #[cfg(target_os = "windows")]
     pub fn ifname2ip_win(ifname: String) -> Result<IpAddr> {
         let adapters = ipconfig::get_adapters()?;
 
