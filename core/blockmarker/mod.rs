@@ -46,7 +46,7 @@ pub fn start_cleanup_task() {
 
             let mut lock = MARKED_IPS.lock().await;
 
-            derivative_val = std::cmp::min(4, lock.len());
+            derivative_val = std::cmp::max(4, lock.len());
 
             lock.drain(0..derivative_val);
 
